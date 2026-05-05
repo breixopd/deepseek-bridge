@@ -270,5 +270,90 @@ class ShutdownSignalTests(unittest.TestCase):
         _shutdown_requested.clear()
 
 
+# ---------------------------------------------------------------------------
+# System fingerprint  (Wave 4)
+# ---------------------------------------------------------------------------
+
+
+class SystemFingerprintTests(unittest.TestCase):
+    """SYSTEM_FINGERPRINT constant format and presence in SSE chunks."""
+
+    def test_system_fingerprint_constant_exists(self) -> None:
+        from deepseek_cursor_proxy.server import SYSTEM_FINGERPRINT
+
+        self.assertTrue(SYSTEM_FINGERPRINT.startswith("fp_"))
+        self.assertEqual(SYSTEM_FINGERPRINT, "fp_deepseek_cursor_proxy")
+
+    def test_system_fingerprint_in_sse_chunk(self) -> None:
+        from deepseek_cursor_proxy.server import SYSTEM_FINGERPRINT
+
+        self.assertIsInstance(SYSTEM_FINGERPRINT, str)
+
+
+# ---------------------------------------------------------------------------
+# x-request-id header  (Wave 4)
+# ---------------------------------------------------------------------------
+
+
+class XRequestIdTests(unittest.TestCase):
+    """_generate_request_id format and uniqueness."""
+
+    def test_generate_request_id_format(self) -> None:
+        from deepseek_cursor_proxy.server import _generate_request_id
+
+        req_id = _generate_request_id()
+        self.assertTrue(req_id.startswith("dcp-"))
+        self.assertEqual(len(req_id), 28)  # "dcp-" + 24 hex chars
+
+    def test_generate_request_id_is_unique(self) -> None:
+        from deepseek_cursor_proxy.server import _generate_request_id
+
+        ids = {_generate_request_id() for _ in range(100)}
+        self.assertEqual(len(ids), 100)  # Ensure uniqueness
+
+
+# ---------------------------------------------------------------------------
+# Error response body format  (Wave 4)
+# ---------------------------------------------------------------------------
+
+
+class ErrorFormatTests(unittest.TestCase):
+    """_error_body produces the standard OpenAI-compatible error envelope."""
+
+    def test_error_body_has_all_fields(self) -> None:
+        from deepseek_cursor_proxy.server import _error_body
+
+        body = _error_body("test msg", "test_type", "test_code")
+        self.assertIn("error", body)
+        self.assertEqual(body["error"]["message"], "test msg")
+        self.assertEqual(body["error"]["type"], "test_type")
+        self.assertEqual(body["error"]["code"], "test_code")
+        self.assertIsNone(body["error"]["param"])
+
+    def test_error_body_param_always_null(self) -> None:
+        from deepseek_cursor_proxy.server import _error_body
+
+        body = _error_body("msg", "type", "code")
+        self.assertIn("param", body["error"])
+        self.assertIsNone(body["error"]["param"])
+
+
+# ---------------------------------------------------------------------------
+# Close-connection on write failure  (Wave 4)
+# ---------------------------------------------------------------------------
+
+
+class CloseConnectionTests(unittest.TestCase):
+    """Verify that _write_to_client sets close_connection on BrokenPipeError."""
+
+    def test_close_connection_set_on_write_failure(self) -> None:
+        import inspect
+        from deepseek_cursor_proxy.server import DeepSeekProxyHandler
+
+        source = inspect.getsource(DeepSeekProxyHandler._write_to_client)
+        self.assertIn("close_connection = True", source)
+        self.assertIn("BrokenPipeError", source)
+
+
 if __name__ == "__main__":
     unittest.main()
