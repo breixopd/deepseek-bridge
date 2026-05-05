@@ -437,6 +437,9 @@ class DeepSeekProxyHandler(BaseHTTPRequestHandler):
                 )
                 return
             if stream:
+                include_usage = bool(
+                    prepared.payload.get("stream_options", {}).get("include_usage")
+                )
                 sent_response = self._proxy_streaming_response(
                     response,
                     prepared.original_model,
@@ -447,6 +450,7 @@ class DeepSeekProxyHandler(BaseHTTPRequestHandler):
                     record_response_scope=prepared.record_response_scope,
                     record_response_messages=prepared.record_response_messages,
                     record_response_contexts=prepared.record_response_contexts,
+                    include_usage=include_usage,
                 )
             else:
                 sent_response = self._proxy_regular_response(
@@ -820,6 +824,7 @@ class DeepSeekProxyHandler(BaseHTTPRequestHandler):
         record_response_scope: str | None = None,
         record_response_messages: list[dict[str, Any]] | None = None,
         record_response_contexts: list[tuple[str, list[dict[str, Any]]]] | None = None,
+        include_usage: bool = False,
     ) -> ProxyResponseResult:
         if trace is not None:
             trace.record_upstream_response(
@@ -902,6 +907,8 @@ class DeepSeekProxyHandler(BaseHTTPRequestHandler):
                     display_adapter,
                     pending_recovery_notice,
                     trace,
+                    include_usage=include_usage,
+                    usage_so_far=usage,
                 )
                 if chunk_usage is not None:
                     usage = chunk_usage
@@ -949,6 +956,8 @@ class DeepSeekProxyHandler(BaseHTTPRequestHandler):
         display_adapter: CursorReasoningDisplayAdapter | None,
         recovery_notice: str | None = None,
         trace: TraceRequest | None = None,
+        include_usage: bool = False,
+        usage_so_far: dict[str, Any] | None = None,
     ) -> tuple[bytes, bool, str | None, dict[str, Any] | None]:
         stripped = line.strip()
         if not stripped.startswith(b"data:"):
@@ -970,6 +979,22 @@ class DeepSeekProxyHandler(BaseHTTPRequestHandler):
             if self.config.verbose and stored:
                 LOG.info("stored %s streaming reasoning cache key(s)", stored)
             prefix = b""
+            if include_usage and usage_so_far is None:
+                prefix += sse_data(
+                    {
+                        "id": "chatcmpl-synthesized-usage",
+                        "object": "chat.completion.chunk",
+                        "created": int(time.time()),
+                        "model": original_model,
+                        "system_fingerprint": SYSTEM_FINGERPRINT,
+                        "choices": [],
+                        "usage": {
+                            "prompt_tokens": 0,
+                            "completion_tokens": 0,
+                            "total_tokens": 0,
+                        },
+                    }
+                )
             if display_adapter is None:
                 if recovery_notice:
                     prefix += sse_data(

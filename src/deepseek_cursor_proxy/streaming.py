@@ -282,6 +282,7 @@ class CursorReasoningDisplayAdapter:
             "object": self._last_chunk_metadata.get("object", "chat.completion.chunk"),
             "created": self._last_chunk_metadata.get("created", int(time.time())),
             "model": model,
+            "system_fingerprint": "fp_deepseek_cursor_proxy",
             "choices": choices,
         }
         return chunk

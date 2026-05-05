@@ -957,6 +957,8 @@ def rewrite_response_body(
             fold_reasoning_into_content(response_payload, collapsible_reasoning)
         if "model" in response_payload:
             response_payload["model"] = original_model
+        if "system_fingerprint" not in response_payload:
+            response_payload["system_fingerprint"] = "fp_deepseek_cursor_proxy"
     return json.dumps(
         response_payload, ensure_ascii=False, separators=(",", ":")
     ).encode("utf-8")
