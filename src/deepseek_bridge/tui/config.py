@@ -7,50 +7,75 @@ from typing import Any
 
 from textual.app import ComposeResult
 from textual.containers import VerticalScroll
-from textual.widgets import Button, Input, Label, Static
+from textual.widgets import Button, Input, Label, Select, Static
 
-CONFIG_FIELDS = [
-    ("model", "upstream_model", "Model", "Model"),
-    ("base_url", "upstream_base_url", "Base URL", "Model"),
-    ("thinking", "thinking", "Thinking", "Model"),
-    ("reasoning_effort", "reasoning_effort", "Reasoning Effort", "Model"),
-    ("display_reasoning", "display_reasoning", "Display Reasoning", "Model"),
-    ("host", "host", "Host", "Network"),
-    ("port", "port", "Port", "Network"),
-    ("ngrok", "ngrok", "Ngrok", "Network"),
-    ("cors", "cors", "CORS", "Network"),
-    ("ollama", "ollama", "Ollama", "Network"),
-    ("log_dir", "log_dir", "Log Dir", "Storage"),
-    ("verbose", "verbose", "Verbose", "Storage"),
-    ("compact", "compact", "Compact", "Storage"),
-    ("request_timeout", "request_timeout", "Request Timeout (s)", "Storage"),
+SELECT_FIELDS = [
+    ("thinking", "thinking", "Thinking", "Model", [
+        ("Enabled", "enabled"), ("Disabled", "disabled"),
+    ]),
+    ("reasoning_effort", "reasoning_effort", "Reasoning Effort", "Model", [
+        ("Low", "low"), ("Medium", "medium"), ("High", "high"),
+        ("Max", "max"), ("XHigh", "xhigh"),
+    ]),
+    ("display_reasoning", "display_reasoning", "Show Reasoning", "Model", [
+        ("On", "true"), ("Off", "false"),
+    ]),
+    ("collapsible_reasoning", "collapsible_reasoning", "Collapsible", "Model", [
+        ("On", "true"), ("Off", "false"),
+    ]),
+    ("host", "host", "Host", "Network", None),
+    ("port", "port", "Port", "Network", None),
+    ("ngrok", "ngrok", "Ngrok", "Network", [
+        ("On", "true"), ("Off", "false"),
+    ]),
+    ("cors", "cors", "CORS", "Network", [
+        ("On", "true"), ("Off", "false"),
+    ]),
+    ("ollama", "ollama", "Ollama", "Network", [
+        ("On", "true"), ("Off", "false"),
+    ]),
+    ("verbose", "verbose", "Verbose", "Storage", [
+        ("On", "true"), ("Off", "false"),
+    ]),
+    ("compact", "compact", "Compact", "Storage", [
+        ("On", "true"), ("Off", "false"),
+    ]),
+    ("request_timeout", "request_timeout", "Req Timeout (s)", "Storage", None),
+    ("log_dir", "log_dir", "Log Dir", "Storage", None),
 ]
-
-BOOLEAN_FIELDS = {"display_reasoning", "ngrok", "cors", "ollama", "verbose", "compact"}
 
 
 class ConfigScreen(VerticalScroll, can_focus=True):
     """View and edit proxy configuration at runtime."""
 
     def compose(self) -> ComposeResult:
-        yield Static(
-            "[bold]Configuration[/] -- edit and apply changes", id="config-title"
-        )
+        yield Static("[bold]Configuration[/] -- edit and apply changes", id="config-title")
         yield Static("", id="config-status")
 
         for category in ("Model", "Network", "Storage"):
             with VerticalScroll(classes="config-group") as group:
                 group.border_title = category
-                for display_key, _dataclass_attr, label, cat in CONFIG_FIELDS:
-                    if cat != category:
-                        continue
-                    yield Label(f"  {label}:")
-                    yield Input(
-                        id=f"cfg-{display_key}",
-                        placeholder=str(display_key),
-                    )
+                yield from self._category_widgets(category)
 
         yield Button("Apply Changes", id="save-btn", variant="primary")
+
+    def _category_widgets(self, category: str):
+        for widget_id, attr, label, cat, options in SELECT_FIELDS:
+            if cat != category:
+                continue
+            yield Label(f" {label}")
+            if options is not None:
+                yield Select(
+                    options,
+                    prompt=label,
+                    id=f"cfg-{widget_id}",
+                    allow_blank=False,
+                )
+            else:
+                yield Input(
+                    placeholder=label,
+                    id=f"cfg-{widget_id}",
+                )
 
     def on_mount(self) -> None:
         self._populate()
@@ -59,16 +84,21 @@ class ConfigScreen(VerticalScroll, can_focus=True):
         config = getattr(self.app, "server_config", None)
         if config is None:
             return
-        for display_key, dataclass_attr, _label, _category in CONFIG_FIELDS:
-            input_id = f"cfg-{display_key}"
+        for widget_id, attr, _label, _cat, options in SELECT_FIELDS:
             try:
-                widget = self.query_one(f"#{input_id}", Input)
+                widget = self.query_one(f"#cfg-{widget_id}")
             except Exception:
                 continue
-            value = getattr(config, dataclass_attr, "")
-            if value is None:
+            value = str(getattr(config, attr, ""))
+            if value is None or value == "None":
                 value = ""
-            widget.value = str(value)
+            if options is not None and isinstance(widget, Select):
+                if value in {"true", "false"}:
+                    widget.value = "true" if value == "true" else "false"
+                else:
+                    widget.value = value
+            elif isinstance(widget, Input):
+                widget.value = value
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id != "save-btn":
@@ -79,41 +109,47 @@ class ConfigScreen(VerticalScroll, can_focus=True):
             return
 
         updates: dict[str, Any] = {}
-        for display_key, dataclass_attr, _label, _category in CONFIG_FIELDS:
-            input_id = f"cfg-{display_key}"
+        for widget_id, attr, _label, _cat, options in SELECT_FIELDS:
             try:
-                widget = self.query_one(f"#{input_id}", Input)
+                widget = self.query_one(f"#cfg-{widget_id}")
             except Exception:
                 continue
-            raw = widget.value.strip()
-            if raw == "" and display_key == "log_dir":
-                updates[dataclass_attr] = None
+
+            if isinstance(widget, Select):
+                raw = str(widget.value)
+            elif isinstance(widget, Input):
+                raw = widget.value.strip()
+            else:
                 continue
-            if display_key in BOOLEAN_FIELDS:
-                lower = raw.lower()
-                if lower in ("true", "1", "yes", "on"):
-                    updates[dataclass_attr] = True
-                elif lower in ("false", "0", "no", "off"):
-                    updates[dataclass_attr] = False
+
+            if raw == "" and widget_id == "log_dir":
+                updates[attr] = None
+                continue
+
+            if options is not None and isinstance(widget, Select):
+                if raw in ("true", "false"):
+                    updates[attr] = raw == "true"
                 else:
-                    self._status(f"Invalid boolean for {display_key}: {raw}")
-                    return
+                    updates[attr] = raw
                 continue
-            if display_key == "port":
+
+            if widget_id == "port":
                 try:
-                    updates[dataclass_attr] = int(raw)
+                    updates[attr] = int(raw) if raw else int(config.port)
                 except ValueError:
-                    self._status(f"Invalid port number: {raw}")
+                    self._status(f"Invalid port: {raw}")
                     return
                 continue
-            if display_key == "request_timeout":
+
+            if widget_id == "request_timeout":
                 try:
-                    updates[dataclass_attr] = float(raw)
+                    updates[attr] = float(raw) if raw else float(config.request_timeout)
                 except ValueError:
                     self._status(f"Invalid timeout: {raw}")
                     return
                 continue
-            updates[dataclass_attr] = raw
+
+            updates[attr] = raw
 
         try:
             self.app.server_config = replace(config, **updates)  # type: ignore[attr-defined]
@@ -122,4 +158,7 @@ class ConfigScreen(VerticalScroll, can_focus=True):
             self._status(f"Error: {exc}")
 
     def _status(self, msg: str) -> None:
-        self.query_one("#config-status", Static).update(msg)
+        try:
+            self.query_one("#config-status", Static).update(msg)
+        except Exception:
+            pass
