@@ -2,6 +2,11 @@
 
 A local proxy that connects AI coding tools (Cursor, GitHub Copilot, Codex, and any OpenAI-compatible client) to DeepSeek's reasoning models by repairing the `reasoning_content` chain that these tools commonly drop from tool-call requests.
 
+```bash
+pip install deepseek-bridge     # minimal
+pip install deepseek-bridge[tui] # with Terminal UI dashboard
+```
+
 DeepSeek's [thinking-mode API](https://api-docs.deepseek.com/guides/thinking_mode#tool-calls) requires every assistant message in a multi-turn tool-call conversation to carry its complete `reasoning_content` back to the server. When a client omits this field, the API returns a 400 error. DeepSeek Bridge intercepts requests, restores the missing reasoning from a local cache, and forwards them upstream — no client-side changes needed.
 
 ## Features
