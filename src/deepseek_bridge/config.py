@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-import yaml  # type: ignore[import-untyped]
+import yaml
 
 APP_DIR_NAME = ".deepseek-bridge"
 CONFIG_FILE_NAME = "config.yaml"

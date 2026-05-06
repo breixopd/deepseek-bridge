@@ -127,7 +127,7 @@ class TuiApp(App[None]):
         uptime_s = f"{h:02d}:{m:02d}"
 
         exe = getattr(server, "executor", None)
-        active = max_workers = queue = "?"
+        active = max_workers = queue = 0
         if exe:
             try:
                 active = len(exe._threads)
