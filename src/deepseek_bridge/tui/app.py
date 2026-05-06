@@ -34,6 +34,8 @@ FIELDS = [
     ("log_dir", "log_dir", "Log Dir", None),
 ]
 
+BOOL_FIELDS = {"display_reasoning", "ngrok", "cors", "ollama", "verbose", "compact", "collapsible_reasoning"}
+
 LOG_MAX = 12
 _log_lines: list[str] = []
 
@@ -155,12 +157,13 @@ class TuiApp(App[None]):
             host = config.host or "127.0.0.1"
             port = config.port or 9000
             local = f"http://{host}:{port}/v1"
+            ollama = f"http://{host}:{port}"
             public = getattr(server, "public_url", None)
             api = f"{public.rstrip('/')}/v1" if public else local
-            urls = (
-                f"[bold]API[/]   {api}\n"
-                f"[bold]Local[/] {local}"
-            )
+            urls = f"[bold]Local[/]  {local}"
+            if public:
+                urls += f"\n[bold]Ngrok[/]  {api}"
+            urls += f"\n[bold]Ollama[/] {ollama}"
             self.query_one("#urls", Static).update(urls)
 
         # --- Logs ---
@@ -289,12 +292,13 @@ class TuiApp(App[None]):
                 updates[attr] = float(raw)
             except ValueError:
                 return
-        elif raw.lower() in ("true", "false", "enabled", "disabled"):
-            updates[attr] = raw.lower() in ("true", "enabled")
+        elif attr in BOOL_FIELDS:
+            updates[attr] = raw.lower() == "true"
         else:
             updates[attr] = raw
         try:
             self.server_config = replace(config, **updates)
+            self.server.config = self.server_config
         except Exception:
             pass
 
