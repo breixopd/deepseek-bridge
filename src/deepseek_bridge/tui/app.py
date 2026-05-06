@@ -219,7 +219,7 @@ class TuiApp(App[None]):
                     display = f"  {label}: {val}"
 
                 if i == self._cfg_cursor:
-                    display = f"[reverse]{display}[/]"
+                    display = f" [reverse] [/]{display[1:]}"
 
                 lines.append(display)
 
