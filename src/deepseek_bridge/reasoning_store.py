@@ -203,14 +203,16 @@ class ReasoningStore:
             self._conn.execute("PRAGMA journal_mode=WAL")
             self._conn.execute("PRAGMA synchronous=NORMAL")
             self._conn.execute("PRAGMA busy_timeout=5000")
-        self._conn.execute("""
+        self._conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS reasoning_cache (
                 key TEXT PRIMARY KEY,
                 reasoning TEXT NOT NULL,
                 message_json TEXT NOT NULL,
                 created_at REAL NOT NULL
             )
-            """)
+            """
+        )
         self._conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_reasoning_cache_created_at "
             "ON reasoning_cache(created_at)"

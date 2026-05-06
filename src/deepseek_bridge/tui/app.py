@@ -11,6 +11,52 @@ from textual.containers import Horizontal, VerticalScroll
 from textual.widgets import Static
 
 
+FIELDS = [
+    ("thinking", "thinking", "Thinking", ["enabled", "disabled"]),
+    (
+        "reasoning_effort",
+        "reasoning_effort",
+        "Effort",
+        ["low", "medium", "high", "max", "xhigh"],
+    ),
+    ("display_reasoning", "display_reasoning", "Show Thinking", ["true", "false"]),
+    ("ngrok", "ngrok", "Ngrok", ["true", "false"]),
+    ("cors", "cors", "CORS", ["true", "false"]),
+    ("ollama", "ollama", "Ollama", ["true", "false"]),
+    ("verbose", "verbose", "Verbose", ["true", "false"]),
+    ("compact", "compact", "Compact", ["true", "false"]),
+    (
+        "collapsible_reasoning",
+        "collapsible_reasoning",
+        "Collapsible",
+        ["true", "false"],
+    ),
+    ("host", "host", "Host", None),
+    ("port", "port", "Port", None),
+    ("request_timeout", "request_timeout", "Timeout (s)", None),
+    ("log_dir", "log_dir", "Log Dir", None),
+]
+
+BOOL_FIELDS = {
+    "display_reasoning",
+    "ngrok",
+    "cors",
+    "ollama",
+    "verbose",
+    "compact",
+    "collapsible_reasoning",
+}
+
+LOG_MAX = 12
+_log_lines: list[str] = []
+
+
+def _add_log(msg: str) -> None:
+    _log_lines.append(msg)
+    if len(_log_lines) > 100:
+        _log_lines[:] = _log_lines[-100:]
+
+
 class TuiApp(App[None]):
 
     TITLE = "DeepSeek Bridge"
@@ -54,7 +100,9 @@ class TuiApp(App[None]):
                 yield Static("", id="config")
 
     def on_mount(self) -> None:
-        import sys, time
+        import sys
+        import time
+
         sys.stdout.write("\x1b]0;DeepSeek Bridge\x07")
         self._prev_time = time.monotonic()
         self.set_interval(1.0, self._refresh)
@@ -104,7 +152,9 @@ class TuiApp(App[None]):
                 except Exception:
                     pass
                 try:
-                    row = store._conn.execute("SELECT COUNT(*) FROM reasoning_cache").fetchone()
+                    row = store._conn.execute(
+                        "SELECT COUNT(*) FROM reasoning_cache"
+                    ).fetchone()
                     db_rows = str(row[0]) if row else "0"
                 except Exception:
                     pass
@@ -130,7 +180,9 @@ class TuiApp(App[None]):
             self.query_one("#urls", Static).update(urls)
 
         visible = _log_lines[-LOG_MAX:]
-        log_text = "\n".join(f"  [dim]•[/] {line}" for line in visible) if visible else ""
+        log_text = (
+            "\n".join(f"  [dim]•[/] {line}" for line in visible) if visible else ""
+        )
         self.query_one("#logs", Static).update(log_text)
 
         # --- Config (right panel) ---
@@ -169,7 +221,9 @@ class TuiApp(App[None]):
 
             self.query_one("#config", Static).update("\n".join(lines))
         else:
-            self.query_one("#config", Static).update("[bold]Configuration[/]\n\n  (none)")
+            self.query_one("#config", Static).update(
+                "[bold]Configuration[/]\n\n  (none)"
+            )
 
     # --- Key bindings ---
 
