@@ -34,6 +34,13 @@ class TuiApp(App[None]):
     #save-btn { margin: 1 0; width: 100%; }
     #config-title { padding: 1 2; }
     #config-status { padding: 0 2; height: 1; }
+    DashboardScreen { height: 1fr; }
+    #dashboard-left { width: 2fr; padding: 1 2; }
+    #dashboard-right { 
+        width: 1fr; 
+        padding: 1 2; 
+        border-left: solid $primary;
+    }
     """
 
     def __init__(

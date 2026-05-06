@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from textual.app import ComposeResult
-from textual.containers import Vertical
+from textual.containers import Horizontal, Vertical
 from textual.widgets import Static
 
 
@@ -48,15 +48,18 @@ class _DashboardSnapshot:
     ollama_url: str = ""
 
 
-class DashboardScreen(Vertical):
+class DashboardScreen(Horizontal):
     """Live statistics for the proxy server."""
 
     _prev_req_count: int = 0
     _prev_snapshot_time: float = 0.0
 
     def compose(self) -> ComposeResult:
-        with Vertical(id="dashboard-stats"):
-            yield Static("Connecting...", id="dashboard-text")
+        with Vertical(id="dashboard-left"):
+            with Vertical(id="dashboard-stats"):
+                yield Static("Connecting...", id="dashboard-text")
+        with Vertical(id="dashboard-right"):
+            yield Static("", id="dashboard-config")
 
     def on_mount(self) -> None:
         self._prev_snapshot_time = time.monotonic()
@@ -135,11 +138,10 @@ class DashboardScreen(Vertical):
         lines.append(
             f"  [bold]Requests[/]     {snap.req_count:,} total  |  {snap.req_rate:.1f} req/s"
         )
-        pool_line = (
+        lines.append(
             f"  [bold]Thread Pool[/]  {snap.active_threads}/{snap.max_workers}"
             f" active  |  queue: {snap.queue_size}"
         )
-        lines.append(pool_line)
         lines.append(
             f"  [bold]DB[/]           {snap.db_size}  |  {snap.db_rows:,} rows"
         )
@@ -152,5 +154,24 @@ class DashboardScreen(Vertical):
             lines.append(f"  Upstream:        {snap.upstream_url}")
             lines.append(f"  Ollama:          {snap.ollama_url}")
 
-        widget = self.query_one("#dashboard-text", Static)
-        widget.update("\n".join(lines))
+        self.query_one("#dashboard-text", Static).update("\n".join(lines))
+
+        if config:
+            thinking = getattr(config, "thinking", "enabled")
+            effort = getattr(config, "reasoning_effort", "max")
+            model = getattr(config, "upstream_model", "?")
+            display = getattr(config, "display_reasoning", True)
+            ngrok = getattr(config, "ngrok", True)
+
+            cfg_lines: list[str] = []
+            cfg_lines.append("[bold]Quick Config[/]")
+            cfg_lines.append("")
+            cfg_lines.append(f"  Model:      [green]{model}[/]")
+            cfg_lines.append(f"  Thinking:   [green]{thinking}[/]")
+            cfg_lines.append(f"  Effort:     [green]{effort}[/]")
+            cfg_lines.append(f"  Show think: [green]{'on' if display else 'off'}[/]")
+            cfg_lines.append(f"  Ngrok:      [green]{'on' if ngrok else 'off'}[/]")
+        else:
+            cfg_lines = ["[bold]Quick Config[/]", "", "  (no config loaded)"]
+
+        self.query_one("#dashboard-config", Static).update("\n".join(cfg_lines))
