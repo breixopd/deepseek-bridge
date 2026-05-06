@@ -89,16 +89,17 @@ class ConfigScreen(VerticalScroll, can_focus=True):
                 widget = self.query_one(f"#cfg-{widget_id}")
             except Exception:
                 continue
-            value = str(getattr(config, attr, ""))
-            if value is None or value == "None":
-                value = ""
+            raw = getattr(config, attr, "")
+            if raw is None or raw == "None":
+                raw = ""
+            if isinstance(raw, bool):
+                raw = "true" if raw else "false"
+            else:
+                raw = str(raw)
             if options is not None and isinstance(widget, Select):
-                if value in {"true", "false"}:
-                    widget.value = "true" if value == "true" else "false"
-                else:
-                    widget.value = value
+                widget.value = raw
             elif isinstance(widget, Input):
-                widget.value = value
+                widget.value = raw
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id != "save-btn":
