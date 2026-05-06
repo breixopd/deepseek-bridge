@@ -21,26 +21,19 @@ class TuiApp(App[None]):
     TabbedContent { height: 1fr; }
     TabPane { height: 1fr; }
     Screen { overflow-y: auto; }
-    ConfigScreen { height: 1fr; }
-    .config-group {
-        border: solid $primary;
-        margin: 0 1 1 1;
-        padding: 1 2;
-        height: auto;
-    }
-    Label { width: 100%; padding-top: 1; }
-    Select { width: 1fr; margin-bottom: 1; }
-    Input { width: 1fr; margin-bottom: 1; }
-    #config-title { padding: 1 2; }
-    #config-status { padding: 0 2; height: 1; }
-    #save-btn { margin: 1 0 2 0; min-height: 3; }
+    ConfigScreen { height: 1fr; padding: 1 3; }
+    ConfigScreen Label { padding-top: 1; }
+    ConfigScreen Select { width: 1fr; }
+    ConfigScreen Input { width: 1fr; }
+    #config-title { padding: 1 0; }
+    #config-status { height: 1; }
+    #save-btn { margin: 1 0 0 3; min-height: 3; }
     DashboardScreen { height: 1fr; }
     #dashboard-left { width: 2fr; padding: 1 2; }
-    #dashboard-right {
-        width: 1fr;
-        padding: 1 2;
-        border-left: solid $primary;
-    }
+    #dashboard-right { width: 1fr; padding: 1 2; }
+    DashboardScreen Select { width: 1fr; }
+    DashboardScreen Input { width: 1fr; }
+    DashboardScreen Button { width: 1fr; }
     """
 
     def __init__(

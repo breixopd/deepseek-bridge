@@ -53,29 +53,25 @@ class ConfigScreen(VerticalScroll, can_focus=True):
         yield Static("", id="config-status")
 
         for category in ("Model", "Network", "Storage"):
-            with VerticalScroll(classes="config-group") as group:
-                group.border_title = category
-                yield from self._category_widgets(category)
+            yield Static(f" [bold italic]{category}[/]", classes="config-cat")
+            for widget_id, _attr, label, cat, options in SELECT_FIELDS:
+                if cat != category:
+                    continue
+                yield Label(f"  {label}")
+                if options is not None:
+                    yield Select(
+                        options,
+                        prompt=label,
+                        id=f"cfg-{widget_id}",
+                        allow_blank=False,
+                    )
+                else:
+                    yield Input(
+                        placeholder=label,
+                        id=f"cfg-{widget_id}",
+                    )
 
         yield Button("Apply Changes", id="save-btn", variant="primary")
-
-    def _category_widgets(self, category: str):
-        for widget_id, attr, label, cat, options in SELECT_FIELDS:
-            if cat != category:
-                continue
-            yield Label(f" {label}")
-            if options is not None:
-                yield Select(
-                    options,
-                    prompt=label,
-                    id=f"cfg-{widget_id}",
-                    allow_blank=False,
-                )
-            else:
-                yield Input(
-                    placeholder=label,
-                    id=f"cfg-{widget_id}",
-                )
 
     def on_mount(self) -> None:
         self._populate()

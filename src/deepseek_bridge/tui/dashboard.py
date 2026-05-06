@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
-from textual.widgets import Static
+from textual.widgets import Button, Input, Select, Static
 
 
 def _fmt_hms(seconds: float) -> str:
@@ -37,15 +37,27 @@ class _DashboardSnapshot:
     queue_size: int = 0
     db_size: str = ""
     db_rows: int = 0
-    tokens_per_sec: float = 0.0
-    cache_hit_rate: str = ""
-    last_model: str = ""
-    last_elapsed: str = ""
-    last_tokens: str = ""
     local_url: str = ""
     api_url: str = ""
     upstream_url: str = ""
     ollama_url: str = ""
+
+
+DASH_CONFIG_FIELDS = [
+    ("thinking", "thinking", "Thinking", [
+        ("Enabled", "enabled"), ("Disabled", "disabled"),
+    ]),
+    ("reasoning_effort", "reasoning_effort", "Effort", [
+        ("Low", "low"), ("Medium", "medium"), ("High", "high"),
+        ("Max", "max"), ("XHigh", "xhigh"),
+    ]),
+    ("display_reasoning", "display_reasoning", "Show Think", [
+        ("On", "true"), ("Off", "false"),
+    ]),
+    ("ngrok", "ngrok", "Ngrok", [
+        ("On", "true"), ("Off", "false"),
+    ]),
+]
 
 
 class DashboardScreen(Horizontal):
@@ -59,11 +71,41 @@ class DashboardScreen(Horizontal):
             with Vertical(id="dashboard-stats"):
                 yield Static("Connecting...", id="dashboard-text")
         with Vertical(id="dashboard-right"):
-            yield Static("", id="dashboard-config")
+            yield Static("[bold]Quick Config[/]", id="dash-config-title")
+            for widget_id, _attr, label, options in DASH_CONFIG_FIELDS:
+                yield Select(
+                    options,
+                    prompt=label,
+                    id=f"dash-{widget_id}",
+                    allow_blank=False,
+                )
+            yield Button("Apply", id="dash-apply", variant="primary")
 
     def on_mount(self) -> None:
         self._prev_snapshot_time = time.monotonic()
         self.set_interval(1.0, self.refresh_stats)
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id != "dash-apply":
+            return
+        config = getattr(self.app, "server_config", None)
+        if config is None:
+            return
+        updates = {}
+        for widget_id, attr, _label, _options in DASH_CONFIG_FIELDS:
+            try:
+                widget = self.query_one(f"#dash-{widget_id}", Select)
+            except Exception:
+                continue
+            raw = str(widget.value)
+            if raw in ("true", "false"):
+                updates[attr] = raw == "true"
+            else:
+                updates[attr] = raw
+        try:
+            self.app.server_config = replace(config, **updates)
+        except (TypeError, ValueError):
+            pass
 
     def refresh_stats(self) -> None:
         app = self.app
@@ -72,7 +114,6 @@ class DashboardScreen(Horizontal):
             return
 
         snap = _DashboardSnapshot()
-
         snap.req_count = getattr(server, "request_count", 0)
         now = time.monotonic()
         elapsed = now - self._prev_snapshot_time
@@ -157,21 +198,15 @@ class DashboardScreen(Horizontal):
         self.query_one("#dashboard-text", Static).update("\n".join(lines))
 
         if config:
-            thinking = getattr(config, "thinking", "enabled")
-            effort = getattr(config, "reasoning_effort", "max")
-            model = getattr(config, "upstream_model", "?")
-            display = getattr(config, "display_reasoning", True)
-            ngrok = getattr(config, "ngrok", True)
-
-            cfg_lines: list[str] = []
-            cfg_lines.append("[bold]Quick Config[/]")
-            cfg_lines.append("")
-            cfg_lines.append(f"  Model:      [green]{model}[/]")
-            cfg_lines.append(f"  Thinking:   [green]{thinking}[/]")
-            cfg_lines.append(f"  Effort:     [green]{effort}[/]")
-            cfg_lines.append(f"  Show think: [green]{'on' if display else 'off'}[/]")
-            cfg_lines.append(f"  Ngrok:      [green]{'on' if ngrok else 'off'}[/]")
-        else:
-            cfg_lines = ["[bold]Quick Config[/]", "", "  (no config loaded)"]
-
-        self.query_one("#dashboard-config", Static).update("\n".join(cfg_lines))
+            for widget_id, attr, _label, _options in DASH_CONFIG_FIELDS:
+                try:
+                    widget = self.query_one(f"#dash-{widget_id}", Select)
+                except Exception:
+                    continue
+                raw = getattr(config, attr, "")
+                if isinstance(raw, bool):
+                    raw = "true" if raw else "false"
+                try:
+                    widget.value = str(raw)
+                except Exception:
+                    pass
