@@ -1,59 +1,56 @@
-<!-- <h1><img src="assets/logo.png" width="120" alt="deepseek-bridge logo" style="vertical-align: middle;">&nbsp;DeepSeek Cursor Proxy</h1> -->
-<h1 align="center"><img src="assets/logo.png" width="150" alt="deepseek-bridge logo"><br>DeepSeek Cursor Proxy</h1>
+<h1 align="center"><img src="assets/logo.png" width="150" alt="deepseek-bridge logo"><br>DeepSeek Bridge</h1>
 
-A compatibility proxy that connects Cursor to DeepSeek thinking models (`deepseek-v4-pro` and `deepseek-v4-flash`) by properly handling the `reasoning_content` field for DeepSeek tool-call reasoning API requests.
+A local proxy that connects AI coding tools (Cursor, GitHub Copilot, Codex, and any OpenAI-compatible client) to DeepSeek's reasoning models by repairing the `reasoning_content` chain that these tools commonly drop from tool-call requests.
 
-This proxy can also help **other applications and coding agents** beyond Cursor that run into the same missing `reasoning_content` issue with DeepSeek's thinking-mode API. Just point their API base URL at the proxy.
+DeepSeek's [thinking-mode API](https://api-docs.deepseek.com/guides/thinking_mode#tool-calls) requires every assistant message in a multi-turn tool-call conversation to carry its complete `reasoning_content` back to the server. When a client omits this field, the API returns a 400 error. DeepSeek Bridge intercepts requests, restores the missing reasoning from a local cache, and forwards them upstream — no client-side changes needed.
 
-## What It Does
+## Features
 
-**Core Reasoning Fix:**
-- ✅ Injects `reasoning_content` into outgoing tool-call requests since Cursor does not include the field, restoring previously cached reasoning from regular and streamed DeepSeek responses. See [DeepSeek docs](https://api-docs.deepseek.com/guides/thinking_mode#tool-calls) for more details.
-- ✅ Displays DeepSeek's thinking tokens in Cursor by forwarding them into Cursor-visible collapsible Markdown `<details><summary>Thinking</summary>...</details>` blocks.
+### Reasoning Repair
+- Injects `reasoning_content` into outgoing tool-call requests, restoring previously cached reasoning from regular and streamed DeepSeek responses.
+- Displays thinking tokens in the client UI using collapsible Markdown `<details>` blocks.
+- Cursor Agent Mode support: automatically converts Responses API payloads to Chat Completions format.
 
-**Connection Resilience:**
-- ✅ Connection pooling via `urllib3` (replaces one-shot `urlopen`) with keep-alive and minimal retries.
-- ✅ Bounded thread pool prevents thread exhaustion on long-running streaming connections.
-- ✅ Configurable SSE read timeout (`--stream-read-timeout`, default 180s) prevents hung threads on silent upstreams.
-- ✅ Ngrok tunnel health check with auto-reconnect (`--ngrok-health-check-interval`).
-- ✅ Graceful shutdown on SIGTERM — active requests drain, reasoning cache is flushed.
-- ✅ GitHub Copilot integration via Ollama-compatible endpoints (enabled by default).
+### Connection Resilience
+- Connection pooling via `urllib3` with keep-alive and minimal retries.
+- Bounded thread pool prevents thread exhaustion on long-running streaming connections.
+- Configurable SSE read timeout (default 180 seconds) prevents hung threads on silent upstreams.
+- Ngrok tunnel health check with automatic reconnection.
+- Graceful shutdown on SIGTERM — active requests drain, reasoning cache is flushed.
 
-**OpenAI API Compatibility:**
-- ✅ `system_fingerprint` in every streaming and non-streaming response.
-- ✅ `x-request-id` UUID header on every response.
-- ✅ OpenAI-standard error format: `{"error": {"message", "type", "code", "param": null}}`.
-- ✅ CORS headers enabled by default.
-- ✅ `/v1/embeddings` endpoint for Cursor @Codebase search.
-- ✅ `/v1/health` endpoint with uptime tracking.
-- ✅ `/v1/completions` legacy endpoint alias (auto-converts `prompt` to `messages`).
-- ✅ Multimodal content arrays preserved (no longer flattened to text).
-- ✅ Stable `/v1/models` timestamps.
+### API Compatibility
+- `system_fingerprint` in every streaming and non-streaming response.
+- `x-request-id` UUID header on every response.
+- OpenAI-standard error format.
+- CORS headers enabled by default.
+- `/v1/embeddings`, `/v1/health`, and `/v1/models` endpoints.
+- `/v1/completions` legacy endpoint (auto-converts `prompt` to `messages`).
+- Multimodal content arrays preserved.
+- DeepSeek V4 thinking parameter support (`thinking`, `reasoning_effort`, `response_format`, `logprobs`).
+- Silent mapping of legacy model names (`deepseek-chat`, `deepseek-reasoner`) to `deepseek-v4-flash`.
 
-**Logging:**
-- ✅ Persistent log files with `--log-dir <path>` — timestamped per-launch, auto-purges old files (keeps last 5).
-- ✅ All errors logged at WARNING level without `--verbose`.
-- ✅ Heartbeat and pool utilization counters.
-- ✅ Full structured request traces with `--trace-dir` (one JSON file per request).
+### Logging and Observability
+- Persistent log files with `--log-dir`.
+- Heartbeat and pool utilization counters.
+- Full structured request traces with `--trace-dir`.
+- Terminal UI dashboard with real-time metrics, config editing, and log viewing.
 
 ## TUI Dashboard
 
-Starting with v0.2.0, `deepseek-bridge` opens a **Terminal UI dashboard** by default. The dashboard provides live monitoring and configuration in the terminal:
+Starting with v0.2.0, DeepSeek Bridge opens a Terminal UI dashboard by default. The dashboard provides live monitoring and configuration:
 
-- **Dashboard tab** — Real-time request metrics, uptime, ngrok status, and pool utilization
-- **Config tab** — Edit proxy settings (model, network, storage) live without restarting
-- **Logs tab** — Streaming log viewer with filtering and search
+- **Dashboard tab** — Real-time request metrics, uptime, ngrok status, and pool utilization.
+- **Config tab** — Edit proxy settings (model, network, storage) without restarting.
+- **Logs tab** — Streaming log viewer with filtering and search.
 
-Use `--headless` to disable the TUI and run in classic CLI mode, or `--no-tui` to suppress it entirely.
+Use `--headless` to disable the TUI and run in classic CLI mode.
 
 ## Why This Exists
 
-This repository fixes the following Cursor + DeepSeek tool-call error with thinking mode enabled:
+DeepSeek's thinking-mode API enforces a strict contract: every assistant message that participates in a tool-call chain must include the full `reasoning_content` field. Some AI coding tools (including Cursor) drop this field from their chat transcript, causing DeepSeek to reject subsequent tool-call requests with:
 
-<img src="assets/error_400.png" width="600" alt="Error 400 - reasoning_content must be passed back">
-
-```txt
-⚠️ Connection Error
+```
+Connection Error
 Provider returned error:
 {
   "error": {
@@ -65,121 +62,81 @@ Provider returned error:
 }
 ```
 
-## Usage
+DeepSeek Bridge stores copies of `reasoning_content` from every response and patches missing entries back into requests before forwarding them upstream.
 
-### Step 1: Set Up ngrok
+## Installation
 
-Cursor blocks non-public API URLs such as `localhost`, so the proxy needs a public HTTPS URL. [ngrok](https://ngrok.com/) can expose the local proxy to Cursor without opening router ports. Alternatively, you may use [Cloudflare Tunnel](https://developers.cloudflare.com/tunnel/setup/). Create an ngrok account and visit [ngrok's dashboard](https://dashboard.ngrok.com). You will find the authtoken and public URL there.
-
-If you're using this proxy with another application that allows localhost API endpoints, you can skip this step entirely by setting `ngrok: false` in `~/.deepseek-bridge/config.yaml`, or by starting the proxy with `--no-ngrok`.
-
-<img src="assets/ngrok_dashboard.png" width="600" alt="ngrok dashboard">
-
-Then, install and authenticate ngrok once:
+Install with `uv` (recommended) or `pip`:
 
 ```bash
-brew install ngrok
-ngrok config add-authtoken <your-ngrok-token>
-```
+# From PyPI
+pip install deepseek-bridge
 
-### Step 2: Install and Start the Proxy Server
+# With TUI dashboard
+pip install deepseek-bridge[tui]
 
-**Run with UV**
-
-```bash
-# Install uv if you don't have it
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Install and start
-# uv installs the program in .venv/ under the repo local folder
-git clone https://github.com/yxlao/deepseek-bridge.git
+# From source
+git clone https://github.com/breixopd/deepseek-bridge.git
 cd deepseek-bridge
 uv run deepseek-bridge
 ```
 
-**Run with Conda**
+### Quick Start
 
 ```bash
-# Install conda if you don't have it
-# Follow: https://www.anaconda.com/docs/getting-started/miniconda/install/overview
+# Run without ngrok for local testing
+deepseek-bridge --no-ngrok --port 9000
 
-# Install
-conda create -n dcp python=3.10 -y
-conda activate dcp
-git clone https://github.com/yxlao/deepseek-bridge.git
-cd deepseek-bridge
-pip install -e .
-
-# Start
-deepseek-bridge
-```
-
-When ngrok is enabled, `deepseek-bridge` will print the ngrok public URL on start. If it differs from the one in Cursor, update it in Cursor's Base URL field.
-
-On the first run, `deepseek-bridge` will create:
-
-- `~/.deepseek-bridge/config.yaml`: the configuration file
-- `~/.deepseek-bridge/reasoning_content.sqlite3`: the reasoning content cache
-
-Persistent settings live in `~/.deepseek-bridge/config.yaml`. You can also override the config with command-line flags, for example:
-
-```bash
-# Hide thinking tokens displaying in Cursor UI
-deepseek-bridge --no-display-reasoning
-
-# Show full incoming and outgoing requests
+# With verbose output
 deepseek-bridge --verbose
 
-# Run without ngrok (run on localhost directly)
-deepseek-bridge --no-ngrok
+# Disable thinking display in the client UI
+deepseek-bridge --no-display-reasoning
 
 # Use a different local port
 deepseek-bridge --port 9000
 ```
 
-### Step 3: Add Cursor Custom Model
+On first run, DeepSeek Bridge creates:
+- `~/.deepseek-bridge/config.yaml` — configuration file
+- `~/.deepseek-bridge/reasoning_content.sqlite3` — reasoning cache
 
-In Cursor, add the DeepSeek custom model and point it at this proxy:
+## Configuration
 
-- Model: `deepseek-v4-pro`
-- API Key: your DeepSeek API key
-- Base URL: your ngrok HTTPS URL with the `/v1` API version path
+All settings are configurable via `~/.deepseek-bridge/config.yaml` or command-line overrides. Example configuration:
 
-The proxy respects the DeepSeek model name Cursor sends, such as `deepseek-v4-pro` or `deepseek-v4-flash`. The `model` field in `config.yaml` is used as a fallback only when a request does not include a model.
+```yaml
+model: deepseek-v4-pro
+base_url: https://api.deepseek.com
+thinking: enabled
+reasoning_effort: max
+display_reasoning: true
+collapsible_reasoning: true
 
-For example, if ngrok dashboard shows `https://example.ngrok-free.dev`, use:
-
-```text
-https://example.ngrok-free.dev/v1
+host: 127.0.0.1
+port: 9000
+ngrok: true
+verbose: false
+cors: true
+request_timeout: 300
 ```
 
-<img src="assets/cursor_config.png" width="600" alt="Cursor settings for DeepSeek through the proxy">
+## Client Setup
 
-Note: you can toggle the custom API on and off with:
+### Cursor
 
-- macOS: `Cmd+Shift+0`
-- Windows/Linux: `Ctrl+Shift+0`
+In Cursor, add a custom model with these settings:
+- **Model**: `deepseek-v4-pro` (or `deepseek-v4-flash`)
+- **API Key**: Your DeepSeek API key
+- **Base URL**: Your ngrok HTTPS URL with `/v1` path (e.g., `https://example.ngrok-free.dev/v1`)
 
-### Step 4: Chat with DeepSeek in Cursor
+Toggle the custom API with `Cmd+Shift+0` (macOS) or `Ctrl+Shift+0` (Windows/Linux).
 
-Select `deepseek-v4-pro` in Cursor and use chat or agent mode as usual.
+> **Note on ngrok**: Cursor blocks non-public URLs such as `localhost`. Use [ngrok](https://ngrok.com) or [Cloudflare Tunnel](https://developers.cloudflare.com/tunnel/setup) to expose the proxy. If your client supports localhost endpoints, disable ngrok with `--no-ngrok`.
 
-<img src="assets/cursor_chat.png" width="480" alt="Chatting with DeepSeek in Cursor">
+### GitHub Copilot
 
-## How It Works
-
-- **Core fix:** DeepSeek [thinking-mode tool calls](https://api-docs.deepseek.com/guides/thinking_mode#tool-calls) require the complete **multi-round** `reasoning_content` chain to be sent back in later requests. Cursor omits that field, causing a 400 error. The proxy (`Cursor -> ngrok -> proxy -> DeepSeek API`) stores DeepSeek's original `reasoning_content` and patches missing blocks back into outgoing tool-call history.
-- **Multi-conversation isolation:** To avoid collisions across concurrent conversations, the proxy scopes cache keys by a SHA-256 hash of the canonical conversation prefix (roles, content, and tool calls, excluding `reasoning_content`) plus the upstream model, configuration, and an API-key hash. Different threads get different scopes, so reused tool-call IDs do not collide. Byte-identical cloned histories produce identical scopes.
-- **Context caching compatibility:** The proxy preserves compatibility by never injecting synthetic thread IDs, timestamps, or cache-control messages. It restores `reasoning_content` as the exact original string, so repeated prefixes remain intact for [DeepSeek context cache](https://api-docs.deepseek.com/guides/kv_cache). Cache hit rates are logged in the terminal output.
-- **Additional compatibility fixes:** Beyond reasoning repair, the proxy converts legacy `functions`/`function_call` fields to `tools`/`tool_choice`, preserves required and named tool-choice semantics, normalizes `reasoning_effort` aliases, strips mirrored thinking display blocks from assistant content, flattens multi-part content arrays to plain text, and mirrors `reasoning_content` into Cursor-visible Markdown details blocks.
-
-## GitHub Copilot Integration
-
-The proxy acts as an Ollama-compatible server for GitHub Copilot Chat in VS Code. Copilot uses the Ollama-native API for model discovery and the OpenAI-compatible `/v1/chat/completions` for inference — both are supported by default.
-
-### Setup
-
-In VS Code, configure Copilot to use your local proxy:
+Configure the Ollama endpoint in VS Code:
 
 ```json
 {
@@ -187,108 +144,101 @@ In VS Code, configure Copilot to use your local proxy:
 }
 ```
 
-Then open Copilot Chat → "Manage Models" → "Add Models" → your DeepSeek models appear automatically.
+Then open Copilot Chat, navigate to "Manage Models", and your DeepSeek models appear automatically.
 
-### Agent Mode Support
+Agent Mode is supported — the proxy advertises `tool_calls` capability via the Ollama `/api/show` endpoint and handles reasoning repair across tool-call chains.
 
-The `/api/show` endpoint advertises `"tools"` capability, enabling full Agent Mode in Copilot. The proxy's reasoning repair pipeline ensures tool-call chains work correctly.
+For the new `customOAIModels` path (VS Code Insiders 1.104+):
 
-### Endpoints
+```json
+{
+  "github.copilot.chat.customOAIModels": {
+    "deepseek-v4-pro": {
+      "name": "DeepSeek V4 Pro",
+      "url": "http://localhost:9000/v1/chat/completions",
+      "toolCalling": true,
+      "vision": false,
+      "thinking": true,
+      "maxInputTokens": 1000000,
+      "maxOutputTokens": 384000,
+      "streaming": true,
+      "requiresAPIKey": true
+    }
+  }
+}
+```
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/version` | GET | Ollama version check (returns `0.18.3`) |
-| `/api/tags` | GET | Model list in Ollama format |
-| `/api/show` | POST | Model capabilities (includes `tools` for Agent Mode) |
+### Other OpenAI-Compatible Clients
 
-Disable Ollama endpoints with `--no-ollama`.
+Any client that speaks the OpenAI `/v1/chat/completions` API can use DeepSeek Bridge. Set the client's base URL to `http://localhost:9000/v1` (or your ngrok URL).
+
+## How It Works
+
+1. **Request interception**: The proxy receives a `/v1/chat/completions` request from the client.
+2. **Format detection**: If the request uses OpenAI Responses API format (common in Cursor Agent Mode), it is converted to Chat Completions format.
+3. **Reasoning repair**: Each assistant message in the conversation is checked. Missing `reasoning_content` fields are looked up in the local SQLite cache and restored.
+4. **Cache isolation**: Cache keys are scoped by a SHA-256 hash of the conversation prefix, upstream model, configuration, and API key. Different conversations and users never collide.
+5. **Response processing**: Reasoning content from the upstream response is cached for future requests. Display adapters mirror reasoning thoughts into Markdown `<details>` blocks visible in the client.
 
 ## Known Limitations
 
 ### Cursor Sub-Agents
 
-Cursor sub-agents do **not** inherit custom API base URL or API key settings — this is a Cursor-side bug (see [forum thread](https://forum.cursor.com/t/sub-agents-are-not-using-custom-openai-base-urls/152574)). When Cursor spawns a sub-agent (e.g., during multi-file edits), it routes through Cursor's own servers rather than your custom endpoint.
+Cursor sub-agents do not inherit custom API base URL or API key settings. This is a Cursor-side bug (see [forum thread](https://forum.cursor.com/t/sub-agents-are-not-using-custom-openai-base-urls/152574)). Use the main agent (`Cmd+Shift+0` to toggle) for direct DeepSeek chat. Sub-agents that route through the proxy will work correctly; those that bypass it fall back to Cursor's built-in models.
 
-**Workaround**: There is currently no proxy-side fix for sub-agent routing. The proxy ensures perfect OpenAI API compliance so that when sub-agents DO route through the proxy, they work correctly. Use the main agent (Cmd+Shift+0 to toggle) for direct DeepSeek chat, and sub-agents will fall back to Cursor's built-in models.
+### Cursor Agent Mode Responses API Format
+
+Cursor Agent mode sends OpenAI Responses API-format payloads to the Chat Completions endpoint. DeepSeek Bridge detects and converts these automatically.
 
 ### Reasoning Display
 
-Cursor's native reasoning UI (brain icon / thought bubble) is only available for Cursor's own models. For BYOK/custom endpoints, DeepSeek's `reasoning_content` is forwarded in SSE chunks (for potential future native support) and mirrored into visible Markdown `<details>` blocks as a real-time workaround.
-
-Use `--no-display-reasoning` (or its alias `--no-markdown-reasoning`) to hide the Markdown mirroring if you prefer to only use the native SSE field.
+Cursor's native reasoning UI is available only for Cursor's own models. For custom endpoints, reasoning content is mirrored into visible Markdown details blocks. Use `--no-display-reasoning` to disable this behavior.
 
 ## Development
 
-Run unit tests:
-
 ```bash
+# Run tests
 uv run python -m unittest discover -s tests
-```
 
-Run pre-commit hooks (code formatting and linting):
-
-```bash
-uv sync --dev
+# Format and lint
 uv run pre-commit run --all-files
+
+# Type check
+uv run mypy src/ --check-untyped-defs
+
+# Run with coverage
+uv run coverage run -m unittest discover -s tests
+uv run coverage report
 ```
 
-## Debugging
+## CLI Reference
 
-Run with verbose output:
-
-```bash
-deepseek-bridge --verbose
-```
-
-Run without ngrok for local curl testing:
-
-```bash
-deepseek-bridge --no-ngrok --port 9000 --verbose
-```
-
-Capture full structured request traces for debugging:
-
-```bash
-deepseek-bridge --verbose --trace-dir ./trace-dumps
-```
-
-Use another config file:
-
-```bash
-deepseek-bridge --config ./dev.config.yaml
-```
-
-Clear the local reasoning cache:
-
-```bash
-deepseek-bridge --clear-reasoning-cache
-```
-
-Persist logs to a directory for debugging:
-
-```bash
-deepseek-bridge --log-dir ~/proxy-logs
-# Each launch creates a timestamped file, auto-purges old logs (keeps last 5)
-cat ~/proxy-logs/proxy-*.log | grep -E "WARNING|ERROR|disconnected"
-```
-
-Full CLI reference:
-
-```bash
-deepseek-bridge --help
-```
-
-Key flags:
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--tui` | on | Terminal UI dashboard (default: Dashboard, Config, Logs tabs) |
-| `--headless` | off | Run without TUI (classic CLI mode) |
-| `--stream-read-timeout` | 180 | SSE read timeout in seconds |
-| `--max-thread-pool` | 20 | Max concurrent request threads |
-| `--max-pool-connections` | 10 | Max upstream connections |
-| `--ngrok-health-check-interval` | 30 | Tunnel health check interval (0=disable) |
+| `--tui` | on | Terminal UI dashboard |
+| `--headless` | off | Run without TUI |
+| `--model` | `deepseek-v4-pro` | Fallback model when request omits it |
+| `--thinking` | `enabled` | DeepSeek thinking mode |
+| `--reasoning-effort` | `max` | Reasoning effort level |
+| `--display-reasoning` | on | Show reasoning content in client UI |
+| `--collapsible-reasoning` | on | Use collapsible Markdown for reasoning |
+| `--host` | `127.0.0.1` | Bind address |
+| `--port` | `9000` | Bind port |
+| `--ngrok` | on | Start ngrok tunnel |
+| `--base-url` | `https://api.deepseek.com` | Upstream DeepSeek API URL |
+| `--cors` | on | Send CORS headers |
+| `--stream-read-timeout` | `180` | SSE read timeout in seconds |
+| `--max-thread-pool` | `20` | Max concurrent request threads |
+| `--max-pool-connections` | `10` | Max upstream connections |
+| `--ngrok-health-check-interval` | `30` | Tunnel health check interval in seconds |
+| `--ollama` / `--no-ollama` | on | Enable/disable Ollama endpoints |
 | `--log-dir` | none | Directory for persistent log files |
-| `--ollama` | on | Enable Ollama endpoints (/api/version, /api/tags, /api/show) |
-| `--no-ollama` | off | Disable Ollama endpoints |
-| `--no-log` | off | Disable persistent log files |
-| `--compact` | off | Compact 1-line-per-request output |
+| `--trace-dir` | none | Directory for request trace dumps |
+| `--verbose` | off | Detailed request logging |
+| `--compact` | off | One-line-per-request output |
+| `--clear-reasoning-cache` | off | Clear reasoning cache and exit |
+| `--version` | - | Print version and exit |
+
+## License
+
+MIT License

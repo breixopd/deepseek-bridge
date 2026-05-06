@@ -1,19 +1,12 @@
-name: CI
+name: Release
 
 on:
-  workflow_dispatch:
   push:
-    branches:
-      - main
-  pull_request:
-    types: [opened, reopened, synchronize]
+    tags:
+      - "v*"
 
 permissions:
   contents: read
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
 
 jobs:
   lint:
@@ -41,7 +34,7 @@ jobs:
         run: uv run mypy src/ --check-untyped-defs
 
   unit-test:
-    name: Unit test (${{ matrix.os }}, Python ${{ matrix.python-version }})
+    name: Test (${{ matrix.os }}, Python ${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -49,10 +42,6 @@ jobs:
         include:
           - os: ubuntu-latest
             python-version: "3.10"
-          - os: ubuntu-latest
-            python-version: "3.11"
-          - os: ubuntu-latest
-            python-version: "3.12"
           - os: ubuntu-latest
             python-version: "3.13"
           - os: macos-latest
@@ -80,3 +69,30 @@ jobs:
         run: |
           uv run coverage run -m unittest discover -s tests -v
           uv run coverage report --fail-under=85
+
+  publish:
+    name: Publish to PyPI
+    needs: [lint, unit-test]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    environment:
+      name: pypi
+      url: https://pypi.org/p/deepseek-bridge
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Build package
+        run: uv build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          attestations: false
