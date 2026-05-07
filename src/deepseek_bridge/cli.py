@@ -20,8 +20,10 @@ from .config import (
     default_reasoning_content_path,
 )
 from .handler import (
-    BoundedThreadPoolHTTPServer,
     DeepSeekProxyHandler,
+)
+from .server_infrastructure import (
+    BoundedThreadPoolHTTPServer,
     UpstreamPool,
 )
 from .helpers import (

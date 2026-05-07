@@ -2,8 +2,10 @@ from __future__ import annotations
 
 # Re-exports from handler module
 from .handler import (
-    BoundedThreadPoolHTTPServer,
     DeepSeekProxyHandler,
+)
+from .server_infrastructure import (
+    BoundedThreadPoolHTTPServer,
     DeepSeekProxyServer,
     UpstreamPool,
 )

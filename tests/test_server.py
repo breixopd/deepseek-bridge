@@ -686,7 +686,7 @@ class BoundedPoolTests(unittest.TestCase):
     def test_reject_connection_sends_503(self) -> None:
         """Verify _reject_connection sends HTTP 503 with JSON body."""
         import socket
-        from deepseek_bridge.handler import BoundedThreadPoolHTTPServer
+        from deepseek_bridge.server_infrastructure import BoundedThreadPoolHTTPServer
 
         a, b = socket.socketpair()
         try:
