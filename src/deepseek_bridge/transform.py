@@ -783,7 +783,7 @@ def prepare_upstream_request(
     )
     record_response_messages = pre_repair_messages
     record_response_scope = conversation_scope(
-        strip_recovery_notice_for_upstream(record_response_messages), cache_namespace
+        record_response_messages, cache_namespace
     )
     messages_for_repair = pre_repair_messages
     continued_recovery_boundary = False
