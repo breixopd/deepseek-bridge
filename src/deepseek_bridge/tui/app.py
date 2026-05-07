@@ -359,7 +359,8 @@ class TuiApp(App[None]):
         self._refresh()
 
     def action_save_config(self) -> None:
-        """Save current config to YAML file. Works regardless of editing state."""
+        """Save current config to YAML file."""
+        import yaml
         from deepseek_bridge.config import default_config_path
 
         if self._editing is not None:
@@ -370,22 +371,30 @@ class TuiApp(App[None]):
             self._edit_buf = ""
 
         config = self.server_config
-        if config is not None:
-            try:
-                path = default_config_path()
-                data = {
-                    k: v for k, v in config.__dict__.items()
-                    if not k.startswith("_")
-                }
-                with open(path, "w") as f:
-                    yaml.dump(data, f, default_flow_style=False)
-                _tui_logger.info("config saved to %s", path)
-                self.notify("Config saved", severity="information", timeout=2)
-            except Exception as exc:
-                _tui_logger.warning("config save failed: %s", exc)
-                self.notify("Save failed", severity="error", timeout=2)
-        else:
+        if config is None:
             self.notify("No config to save", severity="warning", timeout=2)
+            self._refresh()
+            return
+
+        try:
+            data: dict[str, Any] = {}
+            for _wid, attr, _label, _choices in FIELDS:
+                val = getattr(config, attr, None)
+                if val is None:
+                    continue
+                if isinstance(val, Path):
+                    val = str(val)
+                if isinstance(val, bool):
+                    val = str(val).lower()
+                data[attr] = val
+
+            with open(default_config_path(), "w") as f:
+                yaml.dump(data, f, default_flow_style=False)
+            _tui_logger.info("config saved")
+            self.notify("Config saved", severity="information", timeout=2)
+        except Exception as exc:
+            _tui_logger.warning("config save failed: %s", exc)
+            self.notify("Save failed", severity="error", timeout=2)
 
         self._refresh()
 
