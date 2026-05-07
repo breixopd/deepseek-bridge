@@ -56,6 +56,7 @@ check_untyped_defs = true
 warn_unused_ignores = true
 ignore_missing_imports = true
 strict_optional = true
+disable_error_code = ["import-untyped"]
 
 # Handler mixin classes access self attributes (config, headers,
 # _send_json, etc.) that are only resolved at composition time in
