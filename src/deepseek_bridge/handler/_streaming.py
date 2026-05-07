@@ -1,5 +1,5 @@
 from __future__ import annotations
-# mypy: disable-error-code="attr-defined", "misc"
+# mypy: disable-error-code = attr-defined, misc
 
 import json
 import time
