@@ -15,6 +15,7 @@ from urllib.parse import urlparse
 import urllib3
 import urllib3.exceptions
 
+from deepseek_bridge import __version__
 from .config import ProxyConfig
 from .helpers import (
     MODEL_CREATED_TIMESTAMPS,
@@ -81,17 +82,21 @@ class BoundedThreadPoolHTTPServer(DeepSeekProxyServer):
 
     def server_bind(self) -> None:
         super().server_bind()
-        self.socket.settimeout(300)  # 5 minute idle timeout to match request_timeout
+        config = getattr(self, "config", None)
+        timeout = int(config.request_timeout) if config is not None else 300
+        self.socket.settimeout(timeout)
 
     def process_request(self, request, client_address) -> None:
         # Apply server socket timeout to accepted client connections
         if hasattr(request, "settimeout"):
             request.settimeout(
-                self.socket.gettimeout() if hasattr(self, "socket") else 300
+                self.socket.gettimeout() if hasattr(self, "socket") else int(getattr(getattr(self, "config", None), "request_timeout", 300))
             )
         # Check queue size before submitting — reject if overloaded
         queue_size = self.executor._work_queue.qsize()
-        if queue_size > 50:
+        config = getattr(self, "config", None)
+        effective_max_queue = config.max_queue_size if config is not None else 50
+        if queue_size > effective_max_queue:
             LOG.warning(
                 "rejecting request from %s: queue full (%s queued)",
                 client_address, queue_size,
@@ -194,7 +199,7 @@ class BoundedThreadPoolHTTPServer(DeepSeekProxyServer):
 
 
 class DeepSeekProxyHandler(BaseHTTPRequestHandler):
-    server_version = "DeepSeekBridge/0.1"
+    server_version = f"DeepSeekBridge/{__version__}"
 
     @property
     def config(self) -> ProxyConfig:
@@ -866,30 +871,33 @@ class DeepSeekProxyHandler(BaseHTTPRequestHandler):
                     read=self.config.request_timeout,
                 ),
             )
-            if response.status < 400:
-                body = response.data
-                headers = [
-                    ("Content-Type", "application/json"),
-                    ("Content-Length", str(len(body))),
-                ]
-                self._send_response_headers(
-                    response.status, headers, "sending embeddings response"
-                )
-                self._write_to_client(body, "sending embeddings body")
-            else:
-                LOG.warning(
-                    "embeddings endpoint not supported by upstream status=%s",
-                    response.status,
-                )
-                self._send_json(
-                    200,
-                    {
-                        "object": "list",
-                        "data": [],
-                        "model": model,
-                        "usage": {"prompt_tokens": 0, "total_tokens": 0},
-                    },
-                )
+            try:
+                if response.status < 400:
+                    body = response.data
+                    headers = [
+                        ("Content-Type", "application/json"),
+                        ("Content-Length", str(len(body))),
+                    ]
+                    self._send_response_headers(
+                        response.status, headers, "sending embeddings response"
+                    )
+                    self._write_to_client(body, "sending embeddings body")
+                else:
+                    LOG.warning(
+                        "embeddings endpoint not supported by upstream status=%s",
+                        response.status,
+                    )
+                    self._send_json(
+                        200,
+                        {
+                            "object": "list",
+                            "data": [],
+                            "model": model,
+                            "usage": {"prompt_tokens": 0, "total_tokens": 0},
+                        },
+                    )
+            finally:
+                response.release_conn()
         except Exception as exc:
             LOG.warning("embeddings request failed: %s", exc)
             self._send_json(
@@ -940,7 +948,7 @@ class DeepSeekProxyHandler(BaseHTTPRequestHandler):
 
     def _handle_api_version(self) -> None:
         self._request_id = _generate_request_id()
-        self._send_json(200, {"version": "0.18.3"})
+        self._send_json(200, {"version": __version__})
 
     def _handle_api_tags(self) -> None:
         self._request_id = _generate_request_id()

@@ -112,7 +112,9 @@ class ConfigDefaultsTests(unittest.TestCase):
         self.assertEqual(ProxyConfig().stream_read_timeout, 180.0)
 
     def test_max_thread_pool_defaults(self) -> None:
-        self.assertEqual(ProxyConfig().max_thread_pool, 20)
+        import os
+        expected = max((os.cpu_count() or 4) // 2, 4)
+        self.assertEqual(ProxyConfig().max_thread_pool, expected)
 
 
 # ---------------------------------------------------------------------------

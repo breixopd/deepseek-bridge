@@ -29,7 +29,8 @@ DEFAULT_REQUEST_TIMEOUT = 300.0
 DEFAULT_STREAM_READ_TIMEOUT = 180.0
 DEFAULT_MAX_REQUEST_BODY_BYTES = 20 * 1024 * 1024
 DEFAULT_MAX_POOL_CONNECTIONS = 10
-DEFAULT_MAX_THREAD_POOL = 20
+import os
+DEFAULT_MAX_THREAD_POOL = max((os.cpu_count() or 4) // 2, 4)
 DEFAULT_CORS = True
 DEFAULT_MISSING_REASONING_STRATEGY = "recover"
 DEFAULT_REASONING_CACHE_MAX_AGE_SECONDS = 7 * 24 * 60 * 60
@@ -205,6 +206,11 @@ def _auto_pool_connections(max_thread_pool: int, explicit: Any = None) -> int:
     return max(max_thread_pool // 2, 5)
 
 
+def _auto_queue_size(max_thread_pool: int) -> int:
+    """Auto-calculate queue size from thread pool count."""
+    return max_thread_pool * 2 + 10
+
+
 def _auto_cache_max_rows(disk_budget_mb: int = DEFAULT_REASONING_CACHE_DISK_MB) -> int:
     """Auto-calculate max rows based on disk budget."""
     try:
@@ -236,6 +242,7 @@ class ProxyConfig:
     collapsible_reasoning: bool = DEFAULT_COLLAPSIBLE_REASONING
     max_pool_connections: int = DEFAULT_MAX_POOL_CONNECTIONS
     max_thread_pool: int = DEFAULT_MAX_THREAD_POOL
+    max_queue_size: int = field(default_factory=lambda: _auto_queue_size(DEFAULT_MAX_THREAD_POOL))
     cors: bool = DEFAULT_CORS
     ollama: bool = True
     verbose: bool = DEFAULT_VERBOSE
@@ -350,6 +357,9 @@ class ProxyConfig:
             max_thread_pool=as_int(
                 setting_value(settings, "max_thread_pool"),
                 DEFAULT_MAX_THREAD_POOL,
+            ),
+            max_queue_size=_auto_queue_size(
+                as_int(setting_value(settings, "max_thread_pool"), DEFAULT_MAX_THREAD_POOL)
             ),
             log_dir=(
                 Path(v)

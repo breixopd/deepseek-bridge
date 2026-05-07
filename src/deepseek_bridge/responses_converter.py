@@ -122,7 +122,7 @@ def _convert_input_item(item: dict[str, Any]) -> dict[str, Any] | None:
             "role": role,
             "content": _stringify_content(content),
         }
-        if "reasoning_content" in item:
+        if "reasoning_content" in item and isinstance(item["reasoning_content"], str):
             result["reasoning_content"] = item["reasoning_content"]
         return result
 
@@ -135,7 +135,7 @@ def _convert_input_item(item: dict[str, Any]) -> dict[str, Any] | None:
             "role": role,
             "content": _stringify_content(content),
         }
-        if role == "assistant" and "reasoning_content" in item:
+        if role == "assistant" and "reasoning_content" in item and isinstance(item["reasoning_content"], str):
             result["reasoning_content"] = item["reasoning_content"]
         return result
 

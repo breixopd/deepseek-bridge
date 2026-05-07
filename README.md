@@ -50,7 +50,7 @@ Starting with v0.2.0, DeepSeek Bridge opens a Terminal UI dashboard by default. 
 
 - **Dashboard tab** — Real-time request metrics, uptime, ngrok status, and pool utilization.
 - **Config tab** — Edit proxy settings (model, network, storage) without restarting.
-- **Logs tab** — Streaming log viewer with filtering and search.
+- **Logs tab** — Streaming log viewer with auto-scroll.
 
 Use `--headless` to disable the TUI and run in classic CLI mode.
 
@@ -97,16 +97,6 @@ deepseek-bridge --clear-reasoning-cache
 deepseek-bridge --no-display-reasoning
 ```
 
-# With verbose output
-deepseek-bridge --verbose
-
-# Disable thinking display in the client UI
-deepseek-bridge --no-display-reasoning
-
-# Use a different local port
-deepseek-bridge --port 9000
-```
-
 On first run, DeepSeek Bridge creates:
 - `~/.deepseek-bridge/config.yaml` — configuration file
 - `~/.deepseek-bridge/reasoning_content.sqlite3` — reasoning cache
@@ -128,6 +118,8 @@ port: 9000
 ngrok: true
 verbose: false
 cors: true
+ollama: true
+stream_read_timeout: 180
 request_timeout: 300
 ```
 
@@ -225,7 +217,6 @@ uv run coverage report
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--tui` | on | Terminal UI dashboard |
 | `--headless` | off | Run without TUI |
 | `--model` | `deepseek-v4-pro` | Fallback model when request omits it |
 | `--thinking` | `enabled` | DeepSeek thinking mode |
@@ -246,6 +237,12 @@ uv run coverage report
 | `--trace-dir` | none | Directory for request trace dumps |
 | `--verbose` | off | Detailed request logging |
 | `--compact` | off | One-line-per-request output |
+| `--config` | ~/.deepseek-bridge/config.yaml | Config file path |
+| `--no-log` | off | Disable all log file output |
+| `--reasoning-content-path` | ~/.deepseek-bridge/reasoning_content.sqlite3 | Reasoning cache path |
+| `--reasoning-cache-max-age-seconds` | 604800 | Max age of cached reasoning (seconds) |
+| `--missing-reasoning-strategy` | recover | Strategy for missing reasoning (recover/reject) |
+| `--max-request-body-bytes` | 20971520 | Max request body size in bytes |
 | `--clear-reasoning-cache` | off | Clear reasoning cache and exit |
 | `--version` | - | Print version and exit |
 
