@@ -396,6 +396,14 @@ class HandlerStubTests(unittest.TestCase):
         self.assertIn("reasoning_content", body)
         self.assertNotIn("<details>", body)
 
+    def test_check_client_alive_without_request_fallback(self) -> None:
+        """Verify _check_client_alive falls back to wfile.write when request is unset."""
+        handler = _make_handler_stub(_BrokenPipeWfile())
+        # handler.request is not set — should fall back to wfile.write which raises
+        # _BrokenPipeWfile
+        result = handler._check_client_alive()
+        self.assertFalse(result)
+
 
 # ---------------------------------------------------------------------------
 # HTTP-level boundary tests: real proxy + tiny upstream
@@ -631,6 +639,26 @@ class HttpBoundaryTests(unittest.TestCase):
         with urlopen(f"{self.proxy.url}/healthz", timeout=2) as response:
             self.assertEqual(response.status, 200)
             self.assertEqual(json.loads(response.read())["ok"], True)
+
+
+class BoundedPoolTests(unittest.TestCase):
+    """Tests for BoundedThreadPoolHTTPServer queue rejection."""
+
+    def test_reject_connection_sends_503(self) -> None:
+        """Verify _reject_connection sends HTTP 503 with JSON body."""
+        import socket
+        from deepseek_bridge.handler import BoundedThreadPoolHTTPServer
+
+        a, b = socket.socketpair()
+        try:
+            BoundedThreadPoolHTTPServer._reject_connection(a)
+            response = b.recv(4096)
+            self.assertIn(b"503", response)
+            self.assertIn(b"Content-Type: application/json", response)
+            self.assertIn(b"service_unavailable", response)
+        finally:
+            a.close()
+            b.close()
 
 
 if __name__ == "__main__":

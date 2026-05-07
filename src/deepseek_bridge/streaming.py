@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -244,7 +245,7 @@ class CursorReasoningDisplayAdapter:
                 if index not in self._open_choices:
                     mirrored_parts.append(self._block_start)
                     self._open_choices.add(index)
-                mirrored_parts.append(reasoning_content)
+                mirrored_parts.append(html.escape(reasoning_content))
 
             existing_content = delta.get("content")
             should_close = index in self._open_choices and (
@@ -319,7 +320,7 @@ def fold_reasoning_into_content(
         content = message.get("content")
         message["content"] = (
             block_start
-            + reasoning
+            + html.escape(reasoning)
             + block_end
             + (content if isinstance(content, str) else "")
         )

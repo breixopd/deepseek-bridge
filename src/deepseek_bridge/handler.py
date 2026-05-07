@@ -678,7 +678,7 @@ class DeepSeekProxyHandler(BaseHTTPRequestHandler):
             )
         finally:
             spinner.stop()
-            if stream and "response" in locals():
+            if "response" in locals():
                 response.release_conn()
 
     def _start_trace(self, request_path: str) -> TraceRequest | None:

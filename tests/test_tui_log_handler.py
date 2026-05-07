@@ -53,3 +53,14 @@ class TestTuiLogHandler(unittest.TestCase):
     def test_close_is_idempotent(self) -> None:
         self.handler.close()
         self.handler.close()  # Should not raise
+
+    def test_pre_mount_handler_buffers_messages(self) -> None:
+        """Verify PreMountLogHandler buffers messages into the deque."""
+        from deepseek_bridge.tui.log_handler import PreMountLogHandler, _pre_mount_buffer
+        _pre_mount_buffer.clear()
+        handler = PreMountLogHandler(_pre_mount_buffer)
+        record = logging.LogRecord("test", logging.INFO, "test.py", 1, "buffered msg", (), None)
+        handler.emit(record)
+        self.assertEqual(len(_pre_mount_buffer), 1)
+        self.assertIn("buffered msg", _pre_mount_buffer[0])
+        _pre_mount_buffer.clear()
