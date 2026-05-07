@@ -853,12 +853,6 @@ def prepare_upstream_request(
     recovery_dropped_messages = 0
     recovery_notice = None
     recovery_steps: list[dict[str, Any]] = []
-    if thinking_enabled and config.missing_reasoning_strategy == "recover":
-        boundary = active_messages_from_recovery_boundary(pre_repair_messages)
-        if boundary is not None:
-            messages_for_repair, retired_prefix_messages, boundary_step = boundary
-            continued_recovery_boundary = True
-            recovery_steps.append(boundary_step)
 
     messages, patched_count, missing_indexes, reasoning_diagnostics = (
         normalize_messages(
@@ -869,6 +863,21 @@ def prepare_upstream_request(
             keep_reasoning=not thinking_disabled,
         )
     )
+    if missing_indexes and thinking_enabled and config.missing_reasoning_strategy == "recover":
+        boundary = active_messages_from_recovery_boundary(pre_repair_messages)
+        if boundary is not None:
+            messages_for_repair, retired_prefix_messages, boundary_step = boundary
+            continued_recovery_boundary = True
+            recovery_steps.append(boundary_step)
+            messages, patched_count, missing_indexes, reasoning_diagnostics = (
+                normalize_messages(
+                    messages_for_repair,
+                    store,
+                    cache_namespace,
+                    repair_reasoning=thinking_enabled,
+                    keep_reasoning=not thinking_disabled,
+                )
+            )
     while missing_indexes and config.missing_reasoning_strategy == "recover":
         recovered_messages, dropped_messages, notice, recovery_step = (
             recover_messages_from_missing_reasoning(messages, missing_indexes)
