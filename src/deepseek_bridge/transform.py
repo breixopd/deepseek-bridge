@@ -2,10 +2,23 @@ from __future__ import annotations
 
 import hashlib
 import json
-import re
 from dataclasses import dataclass, field
 from typing import Any
 
+from ._normalization import (
+    CURSOR_THINKING_BLOCK_RE,
+    EFFORT_ALIASES,
+    MESSAGE_FIELDS,
+    ROLE_MESSAGE_FIELDS,
+    convert_function_call,
+    extract_text_content,
+    legacy_function_to_tool,
+    normalize_reasoning_effort,
+    normalize_tool,
+    normalize_tool_call,
+    normalize_tool_choice,
+    strip_cursor_thinking_blocks,
+)
 from .config import ProxyConfig
 from .logging import LOG
 from .reasoning_store import (
@@ -75,51 +88,6 @@ SUPPORTED_REQUEST_FIELDS = {
     "n",
     "logit_bias",
 }
-
-MESSAGE_FIELDS = {
-    "role",
-    "content",
-    "name",
-    "tool_call_id",
-    "tool_calls",
-    "reasoning_content",
-    "prefix",
-}
-
-ROLE_MESSAGE_FIELDS = {
-    "system": {"role", "content", "name"},
-    "user": {"role", "content", "name"},
-    "assistant": {
-        "role",
-        "content",
-        "name",
-        "tool_calls",
-        "reasoning_content",
-        "prefix",
-    },
-    "tool": {"role", "content", "tool_call_id"},
-}
-
-EFFORT_ALIASES = {
-    "low": "high",
-    "medium": "high",
-    "high": "high",
-    "max": "max",
-    "xhigh": "max",
-}
-
-CURSOR_THINKING_BLOCK_RE = re.compile(
-    r"""
-    (?:
-        <(?:think|thinking)\b[^>]*>[\s\S]*?(?:</(?:think|thinking)>|\Z)
-        |
-        <details\b[^>]*>\s*
-        <summary\b[^>]*>\s*Thinking\s*</summary>
-        [\s\S]*?(?:</details>|\Z)
-    )\s*
-    """,
-    re.IGNORECASE | re.VERBOSE,
-)
 
 RECOVERY_NOTICE_TEXT = "[deepseek-bridge] Refreshed reasoning_content history."
 RECOVERY_NOTICE_CONTENT = f"{RECOVERY_NOTICE_TEXT}\n\n"

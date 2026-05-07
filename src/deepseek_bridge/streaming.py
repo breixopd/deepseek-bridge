@@ -168,11 +168,7 @@ class StreamAccumulator:
                 continue
             function = tool_call.setdefault("function", {"name": "", "arguments": ""})
             if function_delta.get("name"):
-                existing_name = function.get("name") or ""
-                new_name = str(function_delta["name"])
-                function["name"] = (
-                    new_name if not existing_name else existing_name + new_name
-                )
+                function["name"] = str(function_delta["name"])
             if (
                 "arguments" in function_delta
                 and function_delta["arguments"] is not None
