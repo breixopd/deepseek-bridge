@@ -1,5 +1,4 @@
 from __future__ import annotations
-# mypy: disable-error-code="attr-defined"
 
 import http.client
 import json
@@ -67,9 +66,9 @@ class HandlerRoutes:
 
     def do_POST(self) -> None:
         self._request_id = _generate_request_id()
-        self.server.request_count += 1  # type: ignore[attr-defined]
-        if self.server.request_count % 100 == 0:  # type: ignore[attr-defined]
-            self.server._log_heartbeat()  # type: ignore[attr-defined]
+        self.server.request_count += 1
+        if self.server.request_count % 100 == 0:
+            self.server._log_heartbeat()
         started = time.monotonic()
         request_path = urlparse(self.path).path
         trace = self._start_trace(request_path)

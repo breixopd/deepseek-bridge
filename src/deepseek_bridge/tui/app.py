@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import time
 
-import yaml  # type: ignore[import-untyped]
+import yaml
 
 from dataclasses import replace
 from pathlib import Path

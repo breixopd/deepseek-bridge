@@ -1,5 +1,4 @@
 from __future__ import annotations
-# mypy: disable-error-code = attr-defined
 
 import json
 import time
@@ -156,7 +155,7 @@ class HandlerStreaming:
                     log_json(
                         "model streaming assistant messages", accumulator.messages()
                     )
-                stored = sum(  # type: ignore[misc]
+                stored = sum(
                     accumulator.store_reasoning(
                         self.reasoning_store,
                         ctx_scope,
@@ -193,7 +192,7 @@ class HandlerStreaming:
         if data == b"[DONE]":
             if self.config.verbose:
                 log_json("model streaming assistant messages", accumulator.messages())
-            stored = sum(  # type: ignore[misc]
+            stored = sum(
                 accumulator.store_reasoning(
                     self.reasoning_store,
                     scope,
@@ -251,7 +250,7 @@ class HandlerStreaming:
             if recovery_notice and inject_recovery_notice(chunk, recovery_notice):
                 recovery_notice = None
             accumulator.ingest_chunk(chunk)
-            stored = sum(  # type: ignore[misc]
+            stored = sum(
                 accumulator.store_ready_reasoning(
                     self.reasoning_store,
                     scope,
