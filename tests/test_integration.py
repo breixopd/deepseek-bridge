@@ -32,8 +32,8 @@ class ProxyStartupTests(unittest.TestCase):
             stderr=subprocess.PIPE,
             text=True,
         )
-        # Wait for proxy to be ready
-        deadline = time.monotonic() + 10
+        # Wait for proxy to be ready (macOS CI runners can be slow to start uv+Python)
+        deadline = time.monotonic() + 30
         while time.monotonic() < deadline:
             try:
                 conn = HTTPConnection("127.0.0.1", cls.port, timeout=1)
