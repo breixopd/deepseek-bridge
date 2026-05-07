@@ -105,15 +105,24 @@ class BoundedThreadPoolHTTPServer(DeepSeekProxyServer):
 
     @staticmethod
     def _reject_connection(request: Any) -> None:
+        """Send a 503 and close the connection."""
         import socket
-
         try:
             if isinstance(request, socket.socket):
+                body = json.dumps({
+                    "error": {
+                        "message": "Server overloaded — too many queued requests",
+                        "type": "server_error",
+                        "code": "service_unavailable",
+                    }
+                }).encode("utf-8")
                 request.sendall(
                     b"HTTP/1.1 503 Service Unavailable\r\n"
-                    b"Content-Length: 0\r\n"
+                    b"Content-Type: application/json\r\n"
+                    b"Content-Length: " + str(len(body)).encode("utf-8") + b"\r\n"
                     b"Connection: close\r\n"
                     b"\r\n"
+                    + body
                 )
                 request.close()
         except Exception:
@@ -521,7 +530,25 @@ class DeepSeekProxyHandler(BaseHTTPRequestHandler):
                         )
                         time.sleep(sleep_sec)
                         continue
-                    raise
+                    # After exhausting retries, send a proper error response
+                    spinner.stop()
+                    LOG.warning(
+                        "upstream request failed after %d retries elapsed_ms=%s reason=%s",
+                        max_retries,
+                        elapsed_ms(started),
+                        exc,
+                    )
+                    self._send_json(
+                        500,
+                        _error_body(
+                            f"Upstream request failed after retries: {exc}",
+                            "server_error",
+                            "upstream_failure",
+                        ),
+                        trace=trace,
+                    )
+                    self._finish_trace(trace, "upstream_error", http_status=500)
+                    return
         except urllib3.exceptions.MaxRetryError as exc:
             spinner.stop()
             LOG.warning(
@@ -771,9 +798,19 @@ class DeepSeekProxyHandler(BaseHTTPRequestHandler):
     def _check_client_alive(self) -> bool:
         """Check if downstream client is still connected.
 
-        Sends a zero-byte probe to detect disconnected clients without
-        consuming any data. Returns False if the connection is closed.
+        Uses a zero-byte sendall probe directly on the socket to detect
+        disconnected clients without consuming any data.
         """
+        import socket
+        sock = getattr(self, "request", None)
+        if sock is not None:
+            try:
+                flags = getattr(socket, "MSG_NOSIGNAL", 0)
+                sock.sendall(b"", flags)
+                return True
+            except (ConnectionError, BrokenPipeError, OSError):
+                return False
+        # Fallback for test stubs that don't set self.request
         try:
             self.wfile.write(b"")
             return True

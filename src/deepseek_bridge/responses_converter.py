@@ -118,19 +118,26 @@ def _convert_input_item(item: dict[str, Any]) -> dict[str, Any] | None:
     if item_type == "message":
         role = str(item.get("role", "user"))
         content = item.get("content")
-        return {
+        result: dict[str, Any] = {
             "role": role,
             "content": _stringify_content(content),
         }
+        if "reasoning_content" in item:
+            result["reasoning_content"] = item["reasoning_content"]
+        return result
 
     # --- role-based items (simple format) ---
     item_role = item.get("role")
     if item_role in ("system", "user", "assistant"):
+        role = str(item_role)
         content = item.get("content")
-        return {
-            "role": str(item_role),
+        result = {
+            "role": role,
             "content": _stringify_content(content),
         }
+        if role == "assistant" and "reasoning_content" in item:
+            result["reasoning_content"] = item["reasoning_content"]
+        return result
 
     # --- fallback: try to extract something useful ---
     content = item.get("content")

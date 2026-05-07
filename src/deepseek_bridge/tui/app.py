@@ -83,6 +83,7 @@ class TuiApp(App[None]):
     def __init__(self, server_config=None, server=None) -> None:
         super().__init__()
         self._mounted = False
+        self._tui_handler = None
         self.server_config = server_config
         self.server = server
 
@@ -121,8 +122,12 @@ class TuiApp(App[None]):
         self._mounted = True
 
     def on_unmount(self) -> None:
-        """Clean up TuiLogHandler when TUI shuts down."""
+        """Clean up TuiLogHandler when TUI shuts down and restore stderr logging."""
         import logging
+        import sys
+
+        if self._tui_handler is None:
+            return
 
         self._mounted = False
         root = logging.getLogger()
@@ -131,15 +136,26 @@ class TuiApp(App[None]):
                 h.close()
                 root.removeHandler(h)
 
+        # Restore stderr handler so logging continues after TUI exits
+        has_stderr = any(
+            isinstance(h, logging.StreamHandler) and h.stream is sys.stderr
+            for h in root.handlers
+        )
+        if not has_stderr:
+            handler = logging.StreamHandler(sys.stderr)
+            handler.setFormatter(logging.Formatter("%(message)s"))
+            root.addHandler(handler)
+
     def flush_pre_mount_buffer(self) -> None:
         """Push any buffered pre-mount log messages to the log widget."""
-        from .log_handler import _pre_mount_buffer
-
         try:
+            from .log_handler import _pre_mount_buffer, _pre_mount_lock
+
             log_widget = self.query_one("#logs", RichLog)
-            while _pre_mount_buffer:
-                msg = _pre_mount_buffer.popleft()
-                log_widget.write(msg)
+            with _pre_mount_lock:
+                while _pre_mount_buffer:
+                    msg = _pre_mount_buffer.popleft()
+                    log_widget.write(msg)
         except Exception:
             pass  # Widget not ready yet — buffer remains
 
