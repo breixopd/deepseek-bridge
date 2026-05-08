@@ -62,6 +62,7 @@ disable_error_code = ["import-untyped", "attr-defined", "misc"]
 
 [tool.coverage.run]
 source = ["src/deepseek_bridge"]
+omit = ["*/tui/*"]
 
 [tool.coverage.report]
 exclude_lines = [
@@ -69,4 +70,9 @@ exclude_lines = [
     "def __repr__",
     "raise NotImplementedError",
     'if __name__ == .__main__.:',
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
 ]

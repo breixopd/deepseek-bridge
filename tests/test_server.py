@@ -131,24 +131,22 @@ class CliAndHelperTests(unittest.TestCase):
     def test_cli_boolean_flags_have_on_and_off_forms(self) -> None:
         args = build_arg_parser().parse_args(
             [
-                "--no-ngrok",
-                "--no-verbose",
                 "--no-display-reasoning",
                 "--no-collapsible-reasoning",
                 "--cors",
+                "--tunnel", "localhostrun",
                 "--trace-dir",
                 "/tmp/dcp-traces",
             ]
         )
-        self.assertFalse(args.ngrok)
-        self.assertFalse(args.verbose)
         self.assertFalse(args.display_reasoning)
         self.assertFalse(args.collapsible_reasoning)
         self.assertTrue(args.cors)
+        self.assertEqual(args.tunnel, "localhostrun")
         self.assertEqual(args.trace_dir, Path("/tmp/dcp-traces"))
 
-    def test_default_console_logging_hides_info_prefix_and_timestamp(self) -> None:
-        formatter = ConsoleLogFormatter(verbose=False)
+    def test_console_logging_hides_info_prefix_and_level(self) -> None:
+        formatter = ConsoleLogFormatter()
         info_record = logging.LogRecord(
             "deepseek_bridge",
             logging.INFO,
@@ -176,7 +174,7 @@ class CliAndHelperTests(unittest.TestCase):
             formatter.format(warning_record), "WARNING trace logging enabled"
         )
 
-    def test_verbose_console_logging_shows_timestamp_and_level(self) -> None:
+    def test_console_logging_format(self) -> None:
         formatter = ConsoleLogFormatter(verbose=True)
         record = logging.LogRecord(
             "deepseek_bridge",
@@ -710,7 +708,7 @@ class HttpBoundaryTests(unittest.TestCase):
         self.assertNotIn("hi", output.split("┌ request")[1].split("\n")[0])
         self.assertNotIn("sk-from-cursor", output)
 
-    def test_verbose_logging_includes_bodies_but_redacts_api_key(self) -> None:
+    def test_debug_logging_includes_bodies_but_redacts_api_key(self) -> None:
         self.proxy.server.config = replace(self.proxy.server.config, debug=True)
         with self.assertLogs("deepseek_bridge", level="INFO") as captured:
             _post(

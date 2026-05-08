@@ -19,7 +19,7 @@ VERBOSE_LOG_FORMAT = "%(asctime)s %(levelname)s %(message)s"
 
 
 class ConsoleLogFormatter(stdlib_logging.Formatter):
-    def __init__(self, *, verbose: bool) -> None:
+    def __init__(self, *, verbose: bool = False) -> None:
         super().__init__()
         self.verbose = verbose
         self._verbose_formatter = stdlib_logging.Formatter(VERBOSE_LOG_FORMAT)
@@ -54,7 +54,7 @@ def configure_logging(
     log_file_path: str | None = None
     handlers: list[stdlib_logging.Handler] = []
     console_handler = stdlib_logging.StreamHandler()
-    console_handler.setFormatter(ConsoleLogFormatter(verbose=False))
+    console_handler.setFormatter(ConsoleLogFormatter())
     handlers.append(console_handler)
     if log_dir:
         log_path = Path(log_dir).expanduser()

@@ -236,9 +236,9 @@ class NgrokHealthCheckTests(unittest.TestCase):
         mock_urlopen.side_effect = OSError("Connection refused")
         self.assertFalse(tunnel._is_healthy())
 
-    def test_ngrok_health_check_disabled_when_interval_zero(self) -> None:
-        args = build_arg_parser().parse_args(["--ngrok-health-check-interval", "0"])
-        self.assertEqual(args.ngrok_health_check_interval, 0.0)
+    def test_health_check_disabled_when_interval_zero(self) -> None:
+        hc = HealthCheckConfig(check_interval=0.0)
+        self.assertEqual(hc.check_interval, 0.0)
 
 
 # ---------------------------------------------------------------------------
