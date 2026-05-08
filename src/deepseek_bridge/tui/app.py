@@ -29,6 +29,7 @@ FIELDS = [
     ("ollama", "ollama", "Ollama", ["true", "false"]),
     ("verbose", "verbose", "Verbose", ["true", "false"]),
     ("compact", "compact", "Compact", ["true", "false"]),
+    ("debug", "debug", "Debug Logs", ["true", "false"]),
     (
         "collapsible_reasoning",
         "collapsible_reasoning",
@@ -49,6 +50,7 @@ BOOL_FIELDS = {
     "verbose",
     "compact",
     "collapsible_reasoning",
+    "debug",
 }
 
 _tui_logger = logging.getLogger("deepseek_bridge.tui")
@@ -430,6 +432,11 @@ class TuiApp(App[None]):
         try:
             self.server_config = replace(config, **updates)
             self.server.config = self.server_config
+            if attr == "debug":
+                import logging as _logging
+                _logging.getLogger().setLevel(
+                    _logging.DEBUG if self.server_config.debug else _logging.INFO
+                )
         except Exception:
             pass
 
