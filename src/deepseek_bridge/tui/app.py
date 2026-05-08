@@ -67,6 +67,7 @@ class TuiApp(App[None]):
     #logs-heading { height: auto; }
     #left-col { width: 2fr; padding: 1 1 1 2; }
     #right-panel { width: 1fr; padding: 1 2; }
+    RichLog { can-focus: false; }
     """
 
     BINDINGS = [
@@ -101,7 +102,7 @@ class TuiApp(App[None]):
                     yield Static("", id="stats")
                     yield Static("", id="urls")
                 yield Static("[bold]Logs[/]", id="logs-heading")
-                yield RichLog(id="logs", max_lines=1000, auto_scroll=False, highlight=False, can_focus=False)
+                yield RichLog(id="logs", max_lines=1000, auto_scroll=False, highlight=False)
             with VerticalScroll(id="right-panel"):
                 yield Static("", id="config")
                 yield Static("", id="keybinds")
@@ -303,7 +304,14 @@ class TuiApp(App[None]):
                 "[bold]Configuration[/]\n\n  (none)"
             )
 
-        self.query_one("#keybinds", Static).update("\n[dim]ctrl+s save    p pause proxy[/]")
+        if self._editing is not None:
+            self.query_one("#keybinds", Static).update(
+                "\n[dim]enter confirm    esc cancel[/]"
+            )
+        else:
+            self.query_one("#keybinds", Static).update(
+                "\n[dim]arrows nav    enter edit    ctrl+s save    c copy url    ctrl+q quit    p pause[/]"
+            )
 
     # --- Key bindings ---
 
