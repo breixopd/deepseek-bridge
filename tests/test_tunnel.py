@@ -67,9 +67,13 @@ class CloudflaredTunnelStartTests(unittest.TestCase):
 
     @patch("deepseek_bridge.tunnel.subprocess.Popen")
     @patch("deepseek_bridge.tunnel.shutil.which", return_value="/usr/bin/cloudflared")
+    @patch("time.sleep", return_value=None)
     def test_cloudflared_start_returns_url(
-        self, mock_which: MagicMock, mock_popen: MagicMock
+        self, mock_sleep: MagicMock, mock_which: MagicMock, mock_popen: MagicMock
     ) -> None:
+        mock_proc = MagicMock()
+        mock_proc.poll.return_value = None  # Process still running
+        mock_popen.return_value = mock_proc
         tunnel = CloudflaredTunnel(target_url="http://localhost:9000")
         tunnel.cfd_url = "https://app.example.com"
         url = tunnel.start()

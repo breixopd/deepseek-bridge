@@ -233,6 +233,14 @@ def _verify_tunnel_url(url: str, timeout: float = 5.0) -> bool:
         if resp.status == 200:
             LOG.info("tunnel health check: ok (%s)", url)
             return True
+        if resp.status == 530:
+            LOG.warning(
+                "tunnel health check: HTTP 530 at %s — Cloudflare tunnel not connected. "
+                "Run 'cloudflared tunnel list' and 'cloudflared tunnel route dns'. "
+                "Body: %s",
+                url, body[:120],
+            )
+            return False
         LOG.warning("tunnel health check: HTTP %s at %s — %s", resp.status, url, body[:120])
         return False
     except Exception as exc:

@@ -250,9 +250,20 @@ class CloudflaredTunnel(TunnelService):
             )
         self.process = subprocess.Popen(
             ["cloudflared", "tunnel", "run", self.tunnel_name],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
         )
+        # Give cloudflared time to establish connection
+        import time as _time
+        _time.sleep(3)
+        if self.process.poll() is not None:
+            stderr_output = self.process.stdout.read() if self.process.stdout else ""
+            raise RuntimeError(
+                f"cloudflared exited immediately. "
+                f"Check: 'cloudflared tunnel login' and 'cloudflared tunnel list'. "
+                f"Output: {stderr_output[:200]}"
+            )
         self.public_url = self.cfd_url
         LOG.info("cloudflare tunnel: %s → %s", self.cfd_url, self.target_url)
         return self.cfd_url
