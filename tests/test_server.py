@@ -175,7 +175,7 @@ class CliAndHelperTests(unittest.TestCase):
         )
 
     def test_console_logging_format(self) -> None:
-        formatter = ConsoleLogFormatter(verbose=True)
+        formatter = ConsoleLogFormatter()
         record = logging.LogRecord(
             "deepseek_bridge",
             logging.INFO,
@@ -186,11 +186,9 @@ class CliAndHelperTests(unittest.TestCase):
             None,
         )
 
-        self.assertRegex(
+        self.assertEqual(
             formatter.format(record),
-            re.compile(
-                r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} INFO listening on "
-            ),
+            "listening on http://127.0.0.1:9000/v1",
         )
 
     def test_terminal_spinner_animates_only_for_tty(self) -> None:

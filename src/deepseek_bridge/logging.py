@@ -19,16 +19,12 @@ VERBOSE_LOG_FORMAT = "%(asctime)s %(levelname)s %(message)s"
 
 
 class ConsoleLogFormatter(stdlib_logging.Formatter):
-    def __init__(self, *, verbose: bool = False) -> None:
+    def __init__(self) -> None:
         super().__init__()
-        self.verbose = verbose
-        self._verbose_formatter = stdlib_logging.Formatter(VERBOSE_LOG_FORMAT)
         self._info_formatter = stdlib_logging.Formatter(DEFAULT_INFO_LOG_FORMAT)
         self._warning_formatter = stdlib_logging.Formatter(DEFAULT_WARNING_LOG_FORMAT)
 
     def format(self, record: stdlib_logging.LogRecord) -> str:
-        if self.verbose:
-            return self._verbose_formatter.format(record)
         if record.levelno <= stdlib_logging.INFO:
             return self._info_formatter.format(record)
         return self._warning_formatter.format(record)
