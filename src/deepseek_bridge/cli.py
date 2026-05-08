@@ -366,6 +366,7 @@ def main(argv: list[str] | None = None) -> int:
         tunnel = create_tunnel(config.tunnel, target_url)
         if isinstance(tunnel, CloudflaredTunnel):
             tunnel.cfd_url = config.cf_url
+            tunnel.cfd_tunnel_name = getattr(config, "cfd_tunnel_name", "deepseek-bridge")
         try:
             public_url = tunnel.start()
             _verify_tunnel_url(public_url)

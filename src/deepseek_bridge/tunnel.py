@@ -230,9 +230,10 @@ class CloudflaredTunnel(TunnelService):
     The tunnel URL must be provided via a config field (e.g., https://app.example.com).
     """
 
-    tunnel_name: str = "cloudflared"
+    tunnel_name = "cloudflared"
     target_url: str = ""
     cfd_url: str = ""  # Public URL configured in Cloudflare dashboard
+    cfd_tunnel_name: str = "deepseek-bridge"  # Name from 'cloudflared tunnel create'
 
     process: subprocess.Popen[bytes] | None = None
     public_url: str | None = field(default=None, init=False)
@@ -249,7 +250,7 @@ class CloudflaredTunnel(TunnelService):
                 "Install it: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/"
             )
         self.process = subprocess.Popen(
-            ["cloudflared", "tunnel", "run", self.tunnel_name],
+            ["cloudflared", "tunnel", "run", self.cfd_tunnel_name],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
