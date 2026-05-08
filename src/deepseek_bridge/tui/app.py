@@ -66,10 +66,10 @@ class TuiApp(App[None]):
     """
 
     BINDINGS = [
-        Binding("up", "cfg_up", "Up", show=False),
-        Binding("down", "cfg_down", "Down", show=False),
-        Binding("left", "cfg_left", "Cycle left", show=False),
-        Binding("right", "cfg_right", "Cycle right", show=False),
+        Binding("up", "cfg_up", "Up", show=False, priority=True),
+        Binding("down", "cfg_down", "Down", show=False, priority=True),
+        Binding("left", "cfg_left", "Cycle left", show=False, priority=True),
+        Binding("right", "cfg_right", "Cycle right", show=False, priority=True),
         Binding("enter", "cfg_edit", "Edit", show=False),
         Binding("ctrl+s", "save_config", "Save"),
         Binding("p", "toggle_pause", "Pause"),
