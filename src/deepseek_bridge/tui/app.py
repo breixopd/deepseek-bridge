@@ -70,13 +70,13 @@ class TuiApp(App[None]):
     """
 
     BINDINGS = [
-        Binding("up", "cfg_up", "Up", show=False),
-        Binding("down", "cfg_down", "Down", show=False),
-        Binding("left", "cfg_left", "Cycle left", show=False),
-        Binding("right", "cfg_right", "Cycle right", show=False),
-        Binding("enter", "cfg_edit", "Edit", show=False),
+        Binding("up", "cfg_up", "Up", show=False, priority=True),
+        Binding("down", "cfg_down", "Down", show=False, priority=True),
+        Binding("left", "cfg_left", "Cycle left", show=False, priority=True),
+        Binding("right", "cfg_right", "Cycle right", show=False, priority=True),
+        Binding("enter", "cfg_edit", "Edit", show=False, priority=True),
         Binding("ctrl+s", "save_config", "Save"),
-        Binding("ctrl+q", "quit", "Quit", show=False),
+        Binding("ctrl+q", "quit", "Quit", show=False, priority=True),
         Binding("p", "toggle_pause", "Pause"),
         Binding("c", "copy_url", "Copy URL"),
     ]
@@ -473,6 +473,7 @@ class TuiApp(App[None]):
             self._editing = None
             self._edit_buf = ""
             self._refresh()
+            event.stop()
             return
         if event.name == "enter":
             _wid, attr, _label, _choices = FIELDS[self._editing]
@@ -481,12 +482,14 @@ class TuiApp(App[None]):
             self._editing = None
             self._edit_buf = ""
             self._refresh()
+            event.stop()
             return
         if event.name == "backspace":
             self._edit_buf = self._edit_buf[:-1]
+            event.stop()
         elif hasattr(event, "key") and event.is_printable:
             self._edit_buf += event.key
+            event.stop()
         else:
             return
-        self._refresh()
         self._refresh()
