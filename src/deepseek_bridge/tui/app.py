@@ -74,7 +74,7 @@ class TuiApp(App[None]):
         Binding("ctrl+s", "save_config", "Save"),
         Binding("ctrl+q", "quit", "Quit", show=False),
         Binding("p", "toggle_pause", "Pause"),
-        Binding("c", "copy_url", "Copy URL"),
+        Binding("ctrl+y", "copy_url", "Copy URL"),
     ]
 
     _cfg_cursor: int = 0
@@ -251,7 +251,7 @@ class TuiApp(App[None]):
             if public:
                 tunnel_label = {"ngrok": "ngrok", "localhostrun": "loc.run"}.get(config.tunnel, "tunnel")
                 urls += f"\n  {tunnel_label:<7} {public}"
-            urls += f"\n  [dim][c] copy[/]"
+            urls += f"\n  [dim][ctrl+y] copy[/]"
             self.query_one("#urls", Static).update(urls)
 
 
@@ -304,7 +304,7 @@ class TuiApp(App[None]):
         else:
             self.query_one("#keybinds", Static).update(
                 "\n[dim]arrows  navigate    enter  edit[/]"
-                "\n[dim]ctrl+s  save    c  copy url    p  pause[/]"
+                "\n[dim]ctrl+s  save    ctrl+y  copy url    p  pause[/]"
             )
 
     # --- Key bindings ---
