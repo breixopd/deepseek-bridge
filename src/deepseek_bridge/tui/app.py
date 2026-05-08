@@ -100,7 +100,6 @@ class TuiApp(App[None]):
                 yield RichLog(id="logs", max_lines=1000, highlight=False)
             with VerticalScroll(id="right-panel"):
                 yield Static("", id="config")
-                yield Static("", id="keybinds")
 
     def on_mount(self) -> None:
         import logging
@@ -122,12 +121,6 @@ class TuiApp(App[None]):
                 root.removeHandler(h)  # THEN remove old ones
 
         self.flush_pre_mount_buffer()
-
-        # Auto-copy the Cursor API URL on startup
-        try:
-            self.action_copy_url()
-        except Exception:
-            pass
 
     def on_unmount(self) -> None:
         """Clean up TuiLogHandler when TUI shuts down and restore stderr logging."""
@@ -303,16 +296,6 @@ class TuiApp(App[None]):
                 "[bold]Configuration[/]\n\n  (none)"
             )
 
-        if self._editing is not None:
-            self.query_one("#keybinds", Static).update(
-                "\n[dim]enter  confirm    esc  cancel[/]"
-            )
-        else:
-            self.query_one("#keybinds", Static).update(
-                "\n[dim]arrows  navigate    enter  edit[/]"
-                "\n[dim]ctrl+s  save    ctrl+y  copy url    p  pause[/]"
-            )
-
     # --- Key bindings ---
 
     def action_cfg_up(self) -> None:
@@ -433,6 +416,10 @@ class TuiApp(App[None]):
         url = f"{public}/v1" if public else f"http://{host}:{port}/v1"
         self.copy_to_clipboard(url)
         self.notify("Copied!", timeout=1)
+
+    def on_click(self) -> None:
+        """Copy URL on any click in the TUI."""
+        self.action_copy_url()
 
     def _apply(self, attr: str, raw: str) -> None:
         config = self.server_config
