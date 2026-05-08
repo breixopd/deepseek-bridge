@@ -95,21 +95,21 @@ class LocalhostRunTunnelStartTests(unittest.TestCase):
     def test_start_parses_url_from_stdout(self, mock_popen: MagicMock) -> None:
         mock_proc = MagicMock()
         mock_proc.stdout = [
-            "Connect to http://abc123.localhost.run\n",
-            "Tunnel established.\n",
+            "Connect to http://abcd1234.localhost.run\n",
+            "abcd1234.localhost.run tunneled with tls termination, https://abcd1234.localhost.run\n",
         ]
         mock_popen.return_value = mock_proc
 
         tunnel = LocalhostRunTunnel(target_url="http://localhost:9000")
         url = tunnel.start()
 
-        self.assertEqual(url, "https://abc123.localhost.run")
+        self.assertEqual(url, "https://abcd1234.localhost.run")
         mock_popen.assert_called_once()
 
     @patch("deepseek_bridge.tunnel.subprocess.Popen")
     def test_start_ssh_command(self, mock_popen: MagicMock) -> None:
         mock_proc = MagicMock()
-        mock_proc.stdout = ["https://xyz1.loca.lt\n"]
+        mock_proc.stdout = ["Connect to https://abcd1234.loca.lt\nabcd1234.loca.lt tunneled with tls termination, https://abcd1234.loca.lt\n"]
         mock_popen.return_value = mock_proc
 
         tunnel = LocalhostRunTunnel(target_url="http://127.0.0.1:8080")
@@ -124,13 +124,13 @@ class LocalhostRunTunnelStartTests(unittest.TestCase):
     @patch("deepseek_bridge.tunnel.subprocess.Popen")
     def test_start_upgrades_http_to_https(self, mock_popen: MagicMock) -> None:
         mock_proc = MagicMock()
-        mock_proc.stdout = ["http://abc.localhost.run\n"]
+        mock_proc.stdout = ["abcd1234.localhost.run tunneled with tls termination, http://abcd1234.localhost.run\n"]
         mock_popen.return_value = mock_proc
 
         tunnel = LocalhostRunTunnel(target_url="http://localhost:9000")
         url = tunnel.start()
 
-        self.assertEqual(url, "https://abc.localhost.run")
+        self.assertEqual(url, "https://abcd1234.localhost.run")
 
     @patch("deepseek_bridge.tunnel.subprocess.Popen")
     def test_start_process_exits_before_url_raises(self, mock_popen: MagicMock) -> None:

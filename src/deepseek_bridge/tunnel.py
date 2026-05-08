@@ -221,8 +221,10 @@ class NgrokTunnel(TunnelService):
 
 
 LOCALHOSTRUN_URL_PATTERN = re.compile(
-    r"https?://[a-zA-Z0-9]+\.(?:localhost\.run|loca\.lt|localtunnel\.me)\b"
+    r"https?://[a-zA-Z0-9]{8,}\.(?:lhr\.life|localhost\.run|loca\.lt|localtunnel\.me)\b"
 )
+
+LOCALHOSTRUN_TUNNEL_LINE = re.compile(r"tunneled with tls termination")
 
 
 @dataclass
@@ -274,12 +276,15 @@ class LocalhostRunTunnel(TunnelService):
                 raise RuntimeError(
                     "Timed out waiting for localhost.run tunnel URL"
                 )
-            match = LOCALHOSTRUN_URL_PATTERN.search(line)
-            if match:
-                url = match.group(0)
-                if url.startswith("http://"):
-                    url = "https://" + url[len("http://"):]
-                return url
+            # Only match lines that are actually tunnel notifications,
+            # not documentation URLs in the SSH welcome banner.
+            if LOCALHOSTRUN_TUNNEL_LINE.search(line):
+                match = LOCALHOSTRUN_URL_PATTERN.search(line)
+                if match:
+                    url = match.group(0)
+                    if url.startswith("http://"):
+                        url = "https://" + url[len("http://"):]
+                    return url
         raise RuntimeError(
             "SSH process exited before reporting a tunnel URL"
         )

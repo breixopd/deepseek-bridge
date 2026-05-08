@@ -99,7 +99,7 @@ class TuiApp(App[None]):
                     yield Static("", id="stats")
                     yield Static("", id="urls")
                 yield Static("[bold]Logs[/]", id="logs-heading")
-                yield RichLog(id="logs", max_lines=1000, auto_scroll=False, highlight=False)
+                yield RichLog(id="logs", max_lines=1000, auto_scroll=False, highlight=False, can_focus=False)
             with VerticalScroll(id="right-panel"):
                 yield Static("", id="config")
                 yield Static("", id="keybinds")
@@ -249,11 +249,12 @@ class TuiApp(App[None]):
             local = f"http://{host}:{port}/v1"
             ollama = f"http://{host}:{port}"
             public = getattr(server, "public_url", None)
-            urls = f"\n  local   {local}"
+            api_base = f"{public.rstrip('/')}/v1" if public else local
+            urls = f"  Cursor   {api_base}"
+            urls += f"\n  Copilot  {ollama}"
             if public:
-                tunnel_label = {"ngrok": "ngrok", "localhostrun": "loc.run"}.get(config.tunnel, "public")
-                urls += f"\n  {tunnel_label:<7} {public.rstrip('/')}/v1"
-            urls += f"\n  ollama  {ollama}"
+                tunnel_label = {"ngrok": "ngrok", "localhostrun": "loc.run"}.get(config.tunnel, "tunnel")
+                urls += f"\n  {tunnel_label:<7} {public}"
             self.query_one("#urls", Static).update(urls)
 
 

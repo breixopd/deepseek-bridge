@@ -171,7 +171,7 @@ class StreamAccumulator:
             if not isinstance(raw_delta, dict):
                 continue
             index = raw_delta.get("index")
-            if not isinstance(index, int):
+            if not isinstance(index, int) or index < 0:
                 index = len(choice.tool_calls)
             if index >= MAX_TOOL_CALLS:
                 INTERNAL_LOG.warning(
