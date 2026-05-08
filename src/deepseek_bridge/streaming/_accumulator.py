@@ -4,7 +4,7 @@ import html
 from dataclasses import dataclass, field
 from typing import Any
 
-from ..logging import LOG
+from ..logging import INTERNAL_LOG, LOG
 from ..reasoning_store import ReasoningStore
 
 
@@ -76,7 +76,7 @@ class StreamAccumulator:
             if delta.get("tool_calls"):
                 delta_type = "tool_call"
 
-            LOG.debug(
+            INTERNAL_LOG.debug(
                 "streaming.accumulator: chunk[%s], delta_type=%s",
                 index,
                 delta_type,
@@ -173,7 +173,7 @@ class StreamAccumulator:
                 tool_call["id"] = raw_delta["id"]
             if raw_delta.get("type"):
                 tool_call["type"] = raw_delta["type"]
-            LOG.debug(
+            INTERNAL_LOG.debug(
                 "streaming.accumulator: tool_call[%s] id=%s, name=%s",
                 index,
                 tool_call.get("id", ""),
@@ -210,7 +210,7 @@ class StreamAccumulator:
         if stage_rank.get(previous_stage or "", 0) >= stage_rank.get(stage, 0):
             return 0
         if choice.finish_reason is not None:
-            LOG.debug(
+            INTERNAL_LOG.debug(
                 "streaming.accumulator: finish_reason=%s, finalizing",
                 choice.finish_reason,
             )
@@ -229,7 +229,7 @@ class StreamAccumulator:
             return False
         identified = all(bool(tool_call.get("id")) for tool_call in choice.tool_calls)
         if identified:
-            LOG.debug(
+            INTERNAL_LOG.debug(
                 "streaming.accumulator: all tool_call IDs identified, caching reasoning"
             )
         return identified

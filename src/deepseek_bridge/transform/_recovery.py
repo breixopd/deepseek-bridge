@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..logging import LOG
+from ..logging import INTERNAL_LOG, LOG
 
 # Recovery notice tracking — prevents the cascade loop where the
 # recovery notice changes message content → changes conversation_scope
@@ -155,7 +155,7 @@ def recover_messages_from_missing_reasoning(
         omitted_messages = (
             recovery_boundary_index - len(leading) - kept_context_messages
         )
-        LOG.debug(
+        INTERNAL_LOG.debug(
             "transform.recovery: strategy=recovery_boundary, boundary_at=%s, dropped=%s",
             recovery_boundary_index,
             omitted_messages,
@@ -183,7 +183,7 @@ def recover_messages_from_missing_reasoning(
         -1,
     )
     if last_user_index == -1:
-        LOG.debug(
+        INTERNAL_LOG.debug(
             "transform.recovery: strategy=none, no user messages to recover from",
         )
         return (
@@ -203,7 +203,7 @@ def recover_messages_from_missing_reasoning(
     omitted_messages = len(messages) - len(recovered) - 1
     recovered.append({"role": "system", "content": RECOVERY_SYSTEM_CONTENT})
     recovered.append(messages[last_user_index])
-    LOG.debug(
+    INTERNAL_LOG.debug(
         "transform.recovery: strategy=latest_user, boundary_at=%s, dropped=%s",
         last_user_index,
         omitted_messages,

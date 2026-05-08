@@ -11,7 +11,7 @@ from .._normalization import (
     normalize_tool_choice,
 )
 from ..config import ProxyConfig
-from ..logging import LOG
+from ..logging import INTERNAL_LOG, LOG
 from ..reasoning_store import ReasoningStore, conversation_scope
 from ._cache import (
     reasoning_cache_namespace,
@@ -82,7 +82,7 @@ def prepare_upstream_request(
     original_model = str(payload.get("model") or config.upstream_model)
     upstream_model = upstream_model_for(original_model, config)
     messages_raw = payload.get("messages")
-    LOG.debug(
+    INTERNAL_LOG.debug(
         "transform.prepare: starting request normalization, model=%s, messages=%s",
         upstream_model,
         len(messages_raw) if isinstance(messages_raw, list) else 0,
@@ -151,7 +151,7 @@ def prepare_upstream_request(
         prepared.get("reasoning_effort"),
         authorization,
     )
-    LOG.debug(
+    INTERNAL_LOG.debug(
         "transform.cache: namespace=%s...",
         cache_namespace[:16],
     )
@@ -183,7 +183,7 @@ def prepare_upstream_request(
             keep_reasoning=not thinking_disabled,
         )
     )
-    LOG.debug(
+    INTERNAL_LOG.debug(
         "transform.prepare: cache lookup found %s patched messages, %s still missing",
         patched_count,
         len(missing_indexes),
@@ -191,7 +191,7 @@ def prepare_upstream_request(
     if missing_indexes and thinking_enabled and config.missing_reasoning_strategy == "recover":
         boundary = active_messages_from_recovery_boundary(pre_repair_messages)
         if boundary is not None:
-            LOG.debug("transform.prepare: recovery boundary check - found")
+            INTERNAL_LOG.debug("transform.prepare: recovery boundary check - found")
             messages_for_repair, retired_prefix_messages, boundary_step = boundary
             continued_recovery_boundary = True
             recovery_steps.append(boundary_step)
@@ -205,7 +205,7 @@ def prepare_upstream_request(
                 )
             )
         else:
-            LOG.debug("transform.prepare: recovery boundary check - not found")
+            INTERNAL_LOG.debug("transform.prepare: recovery boundary check - not found")
     while missing_indexes and config.missing_reasoning_strategy == "recover":
         recovered_messages, dropped_messages, notice, recovery_step = (
             recover_messages_from_missing_reasoning(messages, missing_indexes)
@@ -215,7 +215,7 @@ def prepare_upstream_request(
             break
         recovered_count += len(missing_indexes)
         recovery_dropped_messages += dropped_messages
-        LOG.debug(
+        INTERNAL_LOG.debug(
             "transform.prepare: recovery dropped %s prefix messages",
             recovery_dropped_messages,
         )

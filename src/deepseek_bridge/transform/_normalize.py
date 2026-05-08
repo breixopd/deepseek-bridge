@@ -9,7 +9,7 @@ from .._normalization import (
     normalize_tool_call,
     strip_cursor_thinking_blocks,
 )
-from ..logging import LOG
+from ..logging import INTERNAL_LOG, LOG
 from ..reasoning_store import (
     ReasoningStore,
     conversation_scope,
@@ -151,20 +151,20 @@ def normalize_messages(
         normalized_messages.append(normalized)
         if patched:
             patched_count += 1
-            LOG.debug(
+            INTERNAL_LOG.debug(
                 "transform.normalize: message[%s] %s - patched from cache",
                 idx,
                 normalized["role"],
             )
         if missing:
             missing_indexes.append(len(normalized_messages) - 1)
-            LOG.debug(
+            INTERNAL_LOG.debug(
                 "transform.normalize: message[%s] %s - MISSING reasoning_content",
                 idx,
                 normalized["role"],
             )
         elif normalized["role"] == "assistant" and not patched:
-            LOG.debug(
+            INTERNAL_LOG.debug(
                 "transform.normalize: message[%s] %s - no reasoning needed",
                 idx,
                 normalized["role"],

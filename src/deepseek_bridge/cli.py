@@ -33,7 +33,7 @@ from .helpers import (
 from .logging import LOG, configure_logging
 from .reasoning_store import ReasoningStore
 from .trace import TraceWriter
-from .tunnel import HealthCheckConfig, NgrokTunnel, local_tunnel_target
+from .tunnel import HealthCheckConfig, NgrokTunnel, TunnelService, create_tunnel, local_tunnel_target
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
@@ -78,19 +78,10 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="Bind port, default from config or 9000",
     )
     group_net.add_argument(
-        "--ngrok",
-        action=argparse.BooleanOptionalAction,
-        default=None,
-        help="Start an ngrok tunnel and print the Cursor base URL",
-    )
-    group_net.add_argument(
-        "--ngrok-health-check-interval",
-        type=float,
-        default=None,
-        help=(
-            "Ngrok health check interval in seconds (0 to disable), "
-            "default from config or 30.0"
-        ),
+        "--tunnel",
+        choices=["off", "localhostrun", "ngrok"],
+        default="off",
+        help="Tunnel service for public URL exposure (default: off)",
     )
     group_net.add_argument(
         "--base-url",
@@ -181,12 +172,6 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help=f"YAML config file, default {default_config_path()}",
     )
     group_other.add_argument(
-        "--verbose",
-        action=argparse.BooleanOptionalAction,
-        default=None,
-        help="Log detailed request metadata and full payloads",
-    )
-    group_other.add_argument(
         "--debug",
         action="store_true",
         default=False,
@@ -260,10 +245,8 @@ def main(argv: list[str] | None = None) -> int:
         updates["reasoning_effort"] = args.reasoning_effort
     if args.reasoning_content_path is not None:
         updates["reasoning_content_path"] = args.reasoning_content_path
-    if args.ngrok is not None:
-        updates["tunnel"] = "ngrok" if args.ngrok else "off"
-    if args.verbose is not None:
-        pass  # verbose is subsumed by debug; kept for backward compat
+    if args.tunnel != "off":
+        updates["tunnel"] = args.tunnel
     if args.debug:
         updates["debug"] = True
     if args.compact is not None:
@@ -344,11 +327,11 @@ def main(argv: list[str] | None = None) -> int:
     server.upstream_pool = pool
     server.start_time = time.monotonic()
 
-    tunnel: NgrokTunnel | None = None
+    tunnel: TunnelService | None = None
     public_url: str | None = None
     if config.tunnel != "off":
         target_url = local_tunnel_target(config.host, config.port)
-        tunnel = NgrokTunnel(target_url)
+        tunnel = create_tunnel(config.tunnel, target_url)
         try:
             public_url = tunnel.start()
         except RuntimeError as exc:
@@ -356,10 +339,11 @@ def main(argv: list[str] | None = None) -> int:
             server.server_close()
             store.close()
             return 2
-        tunnel.health_check = HealthCheckConfig(
-            check_interval=30,
-        )
-        tunnel.start_health_check()
+        if isinstance(tunnel, NgrokTunnel):
+            tunnel.health_check = HealthCheckConfig(
+                check_interval=30,
+            )
+            tunnel.start_health_check()
     server.public_url = public_url
     local_base_url = f"http://{config.host}:{config.port}/v1"
     api_base_url = (
@@ -403,7 +387,7 @@ def main(argv: list[str] | None = None) -> int:
         LOG.info("  Logs:         disabled")
     LOG.info("")
     if config.debug:
-        LOG.warning("debug mode: verbose request/response logging enabled")
+        LOG.warning("debug mode: request/response logging enabled")
     if trace_writer is not None:
         LOG.info("Trace dir: %s", trace_writer.session_dir)
         LOG.warning("trace logging enabled; prompts and code will be written to disk")

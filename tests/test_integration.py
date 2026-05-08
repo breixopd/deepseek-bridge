@@ -24,7 +24,7 @@ class ProxyStartupTests(unittest.TestCase):
         cls.proc = subprocess.Popen(
             [
                 sys.executable, "-m", "deepseek_bridge",
-                "--headless", "--no-ngrok",
+                "--headless", "--tunnel off",
                 "--port", str(cls.port),
                 "--no-log",
             ],

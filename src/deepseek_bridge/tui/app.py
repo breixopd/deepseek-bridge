@@ -24,10 +24,9 @@ FIELDS = [
         ["low", "medium", "high", "max", "xhigh"],
     ),
     ("display_reasoning", "display_reasoning", "Show Thinking", ["true", "false"]),
-    ("ngrok", "ngrok", "Ngrok", ["true", "false"]),
+    ("tunnel", "tunnel", "Tunnel", ["off", "localhostrun", "ngrok"]),
     ("cors", "cors", "CORS", ["true", "false"]),
     ("ollama", "ollama", "Ollama", ["true", "false"]),
-    ("verbose", "verbose", "Verbose", ["true", "false"]),
     ("compact", "compact", "Compact", ["true", "false"]),
     ("debug", "debug", "Debug Logs", ["true", "false"]),
     (
@@ -44,10 +43,8 @@ FIELDS = [
 
 BOOL_FIELDS = {
     "display_reasoning",
-    "ngrok",
     "cors",
     "ollama",
-    "verbose",
     "compact",
     "collapsible_reasoning",
     "debug",

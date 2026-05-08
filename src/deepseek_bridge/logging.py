@@ -95,7 +95,7 @@ def configure_logging(
     import sys as _sys
 
     _sys.excepthook = _log_unhandled_exception
-    LOG.info("error logging: enabled (warnings visible without --verbose)")
+    LOG.info("error logging: enabled")
     return log_file_path
 
 

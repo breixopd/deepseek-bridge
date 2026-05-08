@@ -9,7 +9,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from .logging import LOG
+from .logging import INTERNAL_LOG, LOG
 
 
 def normalize_tool_call(tool_call: dict[str, Any]) -> dict[str, Any]:
@@ -309,9 +309,9 @@ class ReasoningStore:
                 (key,),
             ).fetchone()
         if row is None:
-            LOG.debug("store.cache: key=%s..., hit=False", key[:32])
+            INTERNAL_LOG.debug("store.cache: key=%s..., hit=False", key[:32])
             return None
-        LOG.debug("store.cache: key=%s..., hit=True", key[:32])
+        INTERNAL_LOG.debug("store.cache: key=%s..., hit=True", key[:32])
         return str(row[0])
 
     def store_assistant_message(
