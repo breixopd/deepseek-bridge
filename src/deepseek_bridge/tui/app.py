@@ -119,6 +119,7 @@ class TuiApp(App[None]):
         self.query_one("#logs", RichLog).can_focus = False
         self.query_one("#left-col").can_focus = False
         self.query_one("#right-panel").can_focus = False
+        self.set_focus(None)  # Ensure no widget steals first keypress
 
         handler = TuiLogHandler(emit_fn=self._write_to_log)
         root = logging.getLogger()
@@ -153,8 +154,6 @@ class TuiApp(App[None]):
             handler = logging.StreamHandler(sys.stderr)
             handler.setFormatter(logging.Formatter("%(message)s"))
             root.addHandler(handler)
-
-        _tui_logger.info("TUI shutdown complete")
 
     def flush_pre_mount_buffer(self) -> None:
         """Push any buffered pre-mount log messages to the log widget."""
