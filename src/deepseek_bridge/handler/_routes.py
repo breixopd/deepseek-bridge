@@ -180,12 +180,6 @@ class HandlerRoutes:
                     },
                 )
 
-        if not self._check_client_alive():
-            LOG.info("client disconnected before upstream request")
-            spinner.stop()
-            self._finish_trace(trace, "aborted")
-            return
-
         LOG.debug(
             "handler.upstream: forwarding to %s, stream=%s",
             upstream_url,
