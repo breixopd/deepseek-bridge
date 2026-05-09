@@ -257,7 +257,7 @@ class CloudflaredTunnel(TunnelService):
         )
         # Give cloudflared time to establish connection
         import time as _time
-        _time.sleep(3)
+        _time.sleep(10)
         if self.process.poll() is not None:
             stderr_output = self.process.stdout.read() if self.process.stdout else ""
             raise RuntimeError(

@@ -11,6 +11,7 @@ import urllib3.exceptions
 from ..helpers import (
     ProxyResponseResult,
     SYSTEM_FINGERPRINT,
+    _error_body,
     inject_recovery_notice,
     log_json,
     recovery_notice_chunk,
@@ -23,6 +24,21 @@ from ..trace import TraceRequest
 
 
 class HandlerStreaming:
+    def _send_sse_error(
+        self,
+        status: int,
+        message: str,
+        trace: "TraceRequest | None" = None,
+    ) -> None:
+        """Send an upstream error as an SSE event when headers are already committed."""
+        import json as _json
+
+        error_payload = _error_body(message, "server_error", "upstream_failure")
+        data = _json.dumps(error_payload, ensure_ascii=False)
+        sse_event = b"data: " + data.encode("utf-8") + b"\n\n"
+        self._write_to_client(sse_event, "sending upstream error via SSE", flush=True)
+        self._write_to_client(b"data: [DONE]\n\n", "sending SSE done", flush=True)
+
     def _proxy_streaming_response(
         self,
         response: Any,
@@ -35,6 +51,7 @@ class HandlerStreaming:
         record_response_messages: list[dict[str, Any]] | None = None,
         record_response_contexts: list[tuple[str, list[dict[str, Any]]]] | None = None,
         include_usage: bool = False,
+        headers_sent: bool = False,
     ) -> ProxyResponseResult:
         if trace is not None:
             trace.record_upstream_response(
@@ -42,23 +59,26 @@ class HandlerStreaming:
                 headers=dict(response.headers.items()),
                 stream=True,
             )
-            trace.record_cursor_response(
-                status=response.status,
-                headers={
-                    "Content-Type": "text/event-stream",
-                    "Cache-Control": "no-cache",
-                    "Connection": "close",
-                },
+            if not headers_sent:
+                trace.record_cursor_response(
+                    status=response.status,
+                    headers={
+                        "Content-Type": "text/event-stream",
+                        "Cache-Control": "no-cache",
+                        "Connection": "close",
+                    },
+                )
+        sent_headers = True
+        if not headers_sent:
+            sent_headers = self._send_response_headers(
+                response.status,
+                [
+                    ("Content-Type", "text/event-stream"),
+                    ("Cache-Control", "no-cache"),
+                    ("Connection", "close"),
+                ],
+                "sending streaming response headers",
             )
-        sent_headers = self._send_response_headers(
-            response.status,
-            [
-                ("Content-Type", "text/event-stream"),
-                ("Cache-Control", "no-cache"),
-                ("Connection", "close"),
-            ],
-            "sending streaming response headers",
-        )
         if not sent_headers:
             return ProxyResponseResult(False)
         self.close_connection = True

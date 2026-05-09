@@ -52,3 +52,7 @@ class DeepSeekProxyHandler(
 
     def log_message(self, fmt, *args) -> None:
         pass  # Intentionally suppress default HTTP server log output
+
+    def handle_one_request(self) -> None:
+        super().handle_one_request()
+        self.close_connection = True

@@ -145,6 +145,33 @@ class HandlerRoutes:
             text="└ {frame}",
         ).start()
 
+        headers_sent = False
+        if stream:
+            sent = self._send_response_headers(
+                200,
+                [
+                    ("Content-Type", "text/event-stream"),
+                    ("Cache-Control", "no-cache"),
+                    ("Connection", "close"),
+                ],
+                "sending early streaming response headers",
+            )
+            if not sent:
+                spinner.stop()
+                self._finish_trace(trace, "aborted")
+                return
+            self.close_connection = True
+            headers_sent = True
+            if trace is not None:
+                trace.record_cursor_response(
+                    status=200,
+                    headers={
+                        "Content-Type": "text/event-stream",
+                        "Cache-Control": "no-cache",
+                        "Connection": "close",
+                    },
+                )
+
         if not self._check_client_alive():
             LOG.info("client disconnected before upstream request")
             spinner.stop()
@@ -164,7 +191,7 @@ class HandlerRoutes:
         if response is None:
             return
 
-        self._dispatch_response(response, prepared, stream, trace, started, spinner)
+        self._dispatch_response(response, prepared, stream, trace, started, spinner, headers_sent=headers_sent)
 
     def _validate_chat_request(
         self, request_path: str
@@ -523,6 +550,7 @@ class HandlerRoutes:
         trace: "TraceRequest | None",
         started: float,
         spinner: "TerminalSpinner",
+        headers_sent: bool = False,
     ) -> None:
         try:
             upstream_status = response.status
@@ -541,7 +569,14 @@ class HandlerRoutes:
                     stream,
                     elapsed_ms(started),
                 )
-                self._send_upstream_error(response, trace=trace)
+                if headers_sent:
+                    self._send_sse_error(
+                        upstream_status,
+                        f"Upstream returned {upstream_status}",
+                        trace=trace,
+                    )
+                else:
+                    self._send_upstream_error(response, trace=trace)
                 self._finish_trace(
                     trace,
                     "upstream_error",
@@ -564,6 +599,7 @@ class HandlerRoutes:
                     record_response_messages=prepared.record_response_messages,
                     record_response_contexts=prepared.record_response_contexts,
                     include_usage=include_usage,
+                    headers_sent=headers_sent,
                 )
             else:
                 sent_response = self._proxy_regular_response(
