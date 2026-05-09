@@ -235,7 +235,7 @@ class CloudflaredTunnel(TunnelService):
     cfd_url: str = ""  # Public URL configured in Cloudflare dashboard
     cfd_tunnel_name: str = "deepseek-bridge"  # Name from 'cloudflared tunnel create'
 
-    process: subprocess.Popen[str] | None = None
+    process: subprocess.Popen[bytes] | None = None
     public_url: str | None = field(default=None, init=False)
 
     def start(self) -> str:
@@ -251,20 +251,17 @@ class CloudflaredTunnel(TunnelService):
             )
         self.process = subprocess.Popen(
             ["cloudflared", "tunnel", "run", "--url", self.target_url, self.cfd_tunnel_name],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
         )
         # Give cloudflared time to establish connection
         import time as _time
         _time.sleep(15)
         assert self.process is not None
         if self.process.poll() is not None:
-            stderr_output = self.process.stdout.read() if self.process.stdout else ""
             raise RuntimeError(
-                f"cloudflared exited immediately. "
-                f"Check: 'cloudflared tunnel login' and 'cloudflared tunnel list'. "
-                f"Output: {stderr_output[:200]}"
+                f"cloudflared exited immediately (code {self.process.returncode}). "
+                f"Check: 'cloudflared tunnel login' and 'cloudflared tunnel list'."
             )
         self.public_url = self.cfd_url
         LOG.info("cloudflare tunnel: %s → %s", self.cfd_url, self.target_url)
