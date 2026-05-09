@@ -74,20 +74,13 @@ class HandlerRoutes:
         started = time.monotonic()
         request_path = urlparse(self.path).path
 
-        LOG.debug(
-            "handler.request: POST %s from %s, content-length=%s",
+        LOG.info(
+            "incoming POST %s from %s content_length=%s user_agent=%s",
             request_path,
             self.client_address[0],
             self.headers.get("Content-Length", "0"),
+            self.headers.get("User-Agent", ""),
         )
-        if self.config.debug:
-            LOG.info(
-                "incoming POST %s from %s content_length=%s user_agent=%s",
-                request_path,
-                self.client_address[0],
-                self.headers.get("Content-Length", "0"),
-                self.headers.get("User-Agent", ""),
-            )
 
         if self.config.ollama and request_path == "/api/show":
             trace = self._start_trace(request_path)
@@ -117,6 +110,8 @@ class HandlerRoutes:
         )
         if prepared is None:
             return
+
+        LOG.info("├ elapsed_ms=%s", elapsed_ms(started))
 
         if self.config.debug:
             log_json("upstream request body", prepared.payload)
