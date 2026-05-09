@@ -176,7 +176,10 @@ class ReasoningStore:
                 mode=0o700, parents=True, exist_ok=True
             )
         self._lock = threading.RLock()
+        self._closed = False
         self._max_rows: int | None = None
+        self._maintenance_thread: threading.Thread | None = None
+        self._maintenance_interval: float = 1800.0  # 30 min default
         self._conn = sqlite3.connect(
             self.reasoning_content_path, check_same_thread=False
         )
@@ -260,14 +263,75 @@ class ReasoningStore:
 
     def close(self) -> None:
         with self._lock:
+            self._closed = True
+        self._stop_maintenance()
+        with self._lock:
             self.vacuum()
             self._conn.close()
+
+    def start_periodic_maintenance(self, interval_seconds: float = 1800.0) -> None:
+        self._maintenance_interval = interval_seconds
+        if self._maintenance_thread is not None:
+            return
+        self._maintenance_thread = threading.Thread(
+            target=self._maintenance_loop,
+            daemon=True,
+            name="db-maintenance",
+        )
+        self._maintenance_thread.start()
+
+    def _stop_maintenance(self) -> None:
+        if self._maintenance_thread is None:
+            return
+        self._maintenance_thread = None
+
+    def _maintenance_loop(self) -> None:
+        while not self._closed:
+            time.sleep(self._maintenance_interval)
+            if self._closed:
+                break
+            try:
+                with self._lock:
+                    if self._closed:
+                        break
+                    bloat = self.check_bloat()
+                    if bloat is not None:
+                        LOG.info("periodic DB check: %s", bloat)
+                        free_pct = self._bloat_free_pct()
+                        if free_pct is not None and free_pct > 0.8:
+                            LOG.warning(
+                                "DB severely bloated (%.0f%% free), clearing cache", free_pct * 100
+                            )
+                            deleted = self._clear_locked()
+                            LOG.info("cleared %s reasoning cache rows", deleted)
+                    self._conn.execute("PRAGMA optimize")
+            except Exception as exc:
+                LOG.warning("periodic DB maintenance failed: %s", exc)
+
+    def _bloat_free_pct(self) -> float | None:
+        try:
+            page_count = self._conn.execute("PRAGMA page_count").fetchone()[0]
+            if page_count == 0:
+                return None
+            freelist = self._conn.execute("PRAGMA freelist_count").fetchone()[0]
+            return freelist / page_count
+        except Exception:
+            return None
+
+    def _clear_locked(self) -> int:
+        row = self._conn.execute("SELECT COUNT(*) FROM reasoning_cache").fetchone()
+        count = int(row[0] if row else 0)
+        self._conn.execute("DELETE FROM reasoning_cache")
+        self._conn.commit()
+        return count
 
     def put(self, key: str, reasoning: str, message: dict[str, Any]) -> None:
         if not isinstance(reasoning, str):
             return
         message_json = json.dumps(message, ensure_ascii=False, sort_keys=True)
         with self._lock:
+            if self._closed:
+                return
             self._conn.execute(
                 """
                 INSERT INTO reasoning_cache(key, reasoning, message_json, created_at)
